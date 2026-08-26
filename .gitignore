@@ -1,7 +1,7 @@
 
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+__pycache,,__/
 *.py[codz]
 *$py.class
 
@@ -254,3 +254,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+node_modules/
+.env
