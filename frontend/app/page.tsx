@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { convertSegmentPathToStaticExportFilename } from 'next/dist/shared/lib/segment-cache/segment-value-encoding';
 
 const FleetMap = dynamic(
   () => import('@/app/FleetMap'),
@@ -26,19 +27,39 @@ type FleetItem = {
   time_of_transmit: string | null;
 };
 
+type Emergency = {
+  id_emergency: number;
+  latitude: number;
+  longitude: number;
+  created_at: string;
+  status: string;
+};
+
 export default function Home() {
   const[fleet, setFleet] = useState<FleetItem[]>([]);
   const[loading, setLoading] = useState(true); // still fetching data upon entering
+  const[emergencies, setEmergencies]=useState<Emergency[]>([]);
+  const[selectedEmergencyId, setSelectedEmergencyId] = 
+    useState<number | null>(null);
+  const [candidates, setCandidates] = useState<FleetItem[]>([]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/fleet/latest-locations')
-    .then((response) => response.json())
-    .then((data) => {
-      setFleet(data);
+
+    Promise.all([
+      fetch('http://localhost:3001/api/fleet/latest-locations')
+      .then((response) => response.json()),
+
+      fetch('http://localhost:3001/api/emergencies/active')
+      .then((response) => response.json())
+
+    ])
+    .then(([fleetData, emergencyData]) => {
+      setFleet(fleetData);
+      setEmergencies(emergencyData)
       setLoading(false);
-    })
+    }) 
     .catch((error) => {
-      console.error('Failed to fetch fleet:', error);
+      console.error('Failed to load dashboard:', error);
       setLoading(false);
     });
   }, []);
@@ -47,10 +68,47 @@ export default function Home() {
     return <main className="p-8"> Loading... </main>;
   }
 
+
+  // Idle / On-click mode
+  async function handleEmergencySelect(id: number) {
+  try {
+    const response = await fetch(
+      `http://localhost:3001/api/emergencies/${id}/candidates?radiusKm=5`
+    );
+
+    if(!response.ok){
+      throw new Error('Failed to fetch candidates');
+    }
+
+    const data = await response.json();
+    console.log('Candidates returned:', data);
+
+    setCandidates(Array.isArray(data) ? data: []);
+    setSelectedEmergencyId(id);
+  } // try block
+
+  catch(error) {
+    console.error(error);
+  } // catch block
+}
+
+// fallback to clear map after an emergency is selected
+function handleClearEmergencySelection() {
+  setSelectedEmergencyId(null);
+  setCandidates([]);
+}
+
   return (
     <main className="p-8">
       <h1 className="text-2xl font-bold mb-4"> Fleet </h1>
-      <FleetMap key="fleet-map" fleet={fleet} />
+      <FleetMap key="fleet-map" 
+      fleet={fleet} 
+      emergencies={emergencies}
+      selectedEmergencyId = {selectedEmergencyId}
+      candidates={candidates}
+      onEmergencySelect={handleEmergencySelect}
+      onClearEmergencySelection={handleClearEmergencySelection}
+      />
 
       <table>
         <thead>
@@ -90,4 +148,6 @@ export default function Home() {
   ); // return 
 
 } // Home function
+
+
 

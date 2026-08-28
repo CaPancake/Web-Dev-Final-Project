@@ -1,0 +1,162 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+type EmergencyNotification = {
+    id_candidate: number;
+    id_emergency: number;
+    id_fleet: number;
+    distance_km: number;
+    notification_status: string;
+    response_status: string;
+    notified_at: string;
+    latitude: number;
+    longitude: number;
+    created_at: string;
+    emergency_status: string;
+}
+
+type Props = {
+    fleetId: number;
+};
+
+export default function IncomingAlerts({ fleetId }: Props ) {
+    const [notifications, setNotifications] = 
+    useState<EmergencyNotification[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    async function loadNotifications() {
+        try {
+            const response = await fetch(
+                `http://localhost:3001/api/fleet/${fleetId}/notifications`
+            );
+
+            if(!response.ok) {
+                throw new Error('Failed to load notifications');
+            }
+
+            const data = await response.json();
+
+            setNotifications(
+                Array.isArray(data) ? data : []
+            );
+        } // try block
+
+        catch (error) {
+            console.error('Failed to load notifications', error);
+        } // catch block
+        finally {
+            setLoading(false);
+        }
+    }
+
+    async function respondToEmergency(
+        emergencyId: number,
+        responseValue: 'ACCEPTED' | 'DECLINED' 
+    ) 
+    {
+        try {
+            const response = await fetch(
+                `http://localhost:3001/api/emergencies/${emergencyId}/respond`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id_fleet: fleetId,
+                    response: responseValue
+                })
+            })
+
+            if(!response.ok) {
+                const errorData = await response.json();
+                console.error(
+                    'Backend response:',
+                    response.status,
+                    errorData
+                );
+                throw new Error(errorData.error || 'Failed to respond to emergency');
+            }
+
+            await loadNotifications();
+        }
+        catch (error) {
+            console.error('Failed to respond:', error);
+        }
+    }
+
+    useEffect(() => {
+        loadNotifications();
+    }, [fleetId]);
+
+    if(loading) {
+        return <p>Checking for nearby emergencies...</p>;
+    }
+
+    return (
+        <section className="w-full max-w-xl mb-8">
+            <h2 className="text-xl font-bold mb-4">
+                Incoming Alerts
+            </h2>
+            {notifications.length === 0 ? (
+                <div className="border rounded-lg p-4 bg-white">
+                    No active emergency requests.
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {notifications.map((notification) =>
+                        <div
+                        key={notification.id_candidate}
+                        className="border rounded-lg p-5 bg-white shadow-sm"
+                        >
+                        <h3 className="font-bold text-lg">
+                            🚨 Emergency #{notification.id_emergency}
+                        </h3>
+
+                        <p className="mt-2">
+                            <strong> Distance: </strong> {' '}
+                            {Number(notification.distance_km).toFixed(2)} km
+                        </p>
+
+                        <p>
+                            <strong> Status: </strong>{' '}
+                            {notification.emergency_status}
+                        </p>
+
+                        <p>
+                            <strong> Received: </strong>{' '}
+                            {notification.notified_at}
+                        </p>
+
+                        <div className="flex gap-3 mt-4">
+                            <button
+                                onClick={() => 
+                                    respondToEmergency(
+                                        notification.id_emergency,
+                                        'ACCEPTED'
+                                    )
+                                }
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                                >
+                                    Accept
+                                </button>
+                            <button
+                                onClick={() =>
+                                    respondToEmergency(
+                                        notification.id_emergency,
+                                        'DECLINED'
+                                    )
+                                }
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg"
+                                >
+                                    Decline
+                                </button>
+                        </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </section>
+    );
+}
