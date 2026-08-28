@@ -320,7 +320,7 @@ app.get('/api/fleet/:id/notifications', async (req, res) => {
                 e.status AS emergency_status
              FROM emergency_candidates ec
              JOIN emergencies e
-                ON ec.id_fleet = e.id_emergency
+                ON ec.id_emergency = e.id_emergency
             WHERE ec.id_fleet = ? 
               AND ec.response_status = 'WAITING'
               AND e.status IN ('OPEN', 'SEARCHING')
@@ -628,6 +628,44 @@ app.post('/api/emergencies/:id/start-navigation', async (req, res) => {
             error:'Failed to start navigation'
         });
     } // catch block
+});
+
+
+app.get('/api/fleet/:id/device-info', async (req, res) => {
+
+      try {
+        const fleetId = Number(req.params.id);
+        const[rows] = await db.query(`
+            SELECT
+                f.id_fleet,
+                f.has_lora,
+                f.dev_EUI,
+                f.lora_battery,
+                f.is_working_defi,
+                u.first_name,
+                u.last_name
+                FROM fleet f
+                JOIN users u
+                ON u.id_user = f.id_user
+                WHERE f.id_user = ?
+            `, [fleetId]);
+
+            if(rows.length === 0) {
+                return res.status(404).json({
+                    error:'Fleet member not found'
+                });
+            }
+
+            res.json(rows[0]);
+
+      } // try block
+      catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error:'Failed to load device information'
+        });
+      } // catch block
 });
 
 const PORT = process.env.PORT || 3001;

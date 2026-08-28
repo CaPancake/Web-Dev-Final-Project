@@ -89,3 +89,18 @@ body {
 .leaflet-pop-up-pane {
   z-index: 10000 !important;
 }
+
+@keyframes loraBlink {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15)
+  }
+}
+
+.lora-blink {
+  animation: loraBlink 0.5s infinite;
+}
