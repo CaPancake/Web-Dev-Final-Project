@@ -13,9 +13,10 @@ type EmergencyNotification = {
 type Props = {
     fleetId: number;
     onAlertSignal?: () => void;
+    onResponseChanged?: () => void;
 };
 
-export default function LoRaIncomingAlerts( {fleetId, onAlertSignal} : Props) {
+export default function LoRaIncomingAlerts( {fleetId, onAlertSignal, onResponseChanged } : Props) {
     const[notifications, setNotifications] = 
     useState<EmergencyNotification[]>([]);
 
@@ -116,6 +117,8 @@ export default function LoRaIncomingAlerts( {fleetId, onAlertSignal} : Props) {
                 );
                 throw new Error( errorData.error || 'Failed to respond');
             }
+
+            onResponseChanged?.();
 
         } // try block
         catch (error) {

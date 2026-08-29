@@ -4,7 +4,7 @@ const express = require('express')
 const cors = require('cors')
 const db = require('./db');
 
-const { findCandidates } = require('./services/candidateService');
+const { findCandidates, haversineDistance } = require('./services/candidateService');
 
 const app = express();
 
@@ -666,6 +666,143 @@ app.get('/api/fleet/:id/device-info', async (req, res) => {
             error:'Failed to load device information'
         });
       } // catch block
+});
+
+app.get('/api/emergencies/:id/arrival-check', async (req, res) => {
+    try {
+        const emergencyId = Number(req.params.id);
+        const fleetId = Number(req.query.fleetId);
+
+        if(!fleetId) {
+            return res.status(400).json({
+                error:'fleetId is required'
+            });
+        }
+
+        const [emergencyRows] = await db.query(`
+            SELECT latitude, longitude, status
+            FROM emergencies 
+            WHERE id_emergency = ?`, [emergencyId]);
+
+            if(emergencyRows.length === 0) {
+                return res.status(404).json({
+                    error:'Emergency not found'
+                });
+            }
+
+            const [locationRows] = await db.query(`
+                SELECT latitude, longitude
+                FROM locations
+                WHERE id_fleet = ?
+                ORDER BY time_of_transmit DESC, id_location DESC
+                LIMIT 1
+                `, [fleetId]);
+
+            if(locationRows.length === 0) {
+                return res.status(404).json({
+                    error: 'Responder location not found'
+                });
+            }
+
+            const emergency = emergencyRows[0];
+            const responder = locationRows[0];
+
+            const distanceKm = haversineDistance(
+                Number(responder.latitude),
+                Number(responder.longitude),
+                Number(emergency.latitude),
+                Number(emergency.longitude));
+
+            const distanceMeters = distanceKm * 1000;
+
+            const arrived = distanceMeters <= 50;
+
+            res.json({
+                arrived,
+                distanceMeters
+            });
+
+    } // try block
+    catch(error) {
+        console.error(error);
+        res.status(500).json({
+            error:'Failed to check arrival'
+        });
+    } // catch block
+});
+
+app.post('/api/emergencies/:id/resolve', async(req, res) => {
+    try {   
+
+        const emergencyId = Number(req.params.id);
+        const fleetId = Number(req.body.id_fleet);
+
+        const [emergencyRows] = await db.query(`
+            SELECT  latitude, longitude, status
+            FROM emergencies
+            WHERE id_emergency = ?
+            `, [emergencyId]);
+
+        if(emergencyRows.length === 0) {
+            return res.status(404).json({
+                error:'Emergency not found'
+            });
+        }
+
+        const [locationRows] = await db.query(`
+            SELECT latitude, longitude
+            FROM locations
+            WHERE id_fleet = ?
+            ORDER BY time_of_transmit DESC, id_location DESC
+            `, [fleetId]);
+
+        if(locationRows.length === 0) {
+            return res.status(404).json({
+                error:'Responder location not found'
+            });
+        }
+
+        const emergency = emergencyRows[0];
+        const responder = locationRows[0];
+
+        const distanceMeters = haversineDistance(
+            Number(responder.latitude),
+            Number(responder.longitude),
+            Number(emergency.latitude),
+            Number(emergency.longitude)
+        ) * 1000;
+
+        if(distanceMeters > 50) {
+            return res.status(409).json({
+                error:'Responder has not arrived yet'
+            });
+        }
+
+        const [result] = await db.query(`
+            UPDATE emergencies 
+            SET status = 'RESOLVED'
+            WHERE id_emergency = ?
+                AND status IN ('EN_ROUTE', 'RESPONDER_FOUND', 'ARRIVED')
+            `, [emergencyId]);
+
+        if(result.affectedRows === 0) {
+            return res.status(409).json({
+                error:'Emergency cannot be resolved'
+            });
+        }
+
+        res.json({
+            id_emergency: emergencyId,
+            status: 'RESOLVED'
+        });
+    } // try block
+    catch(error) {
+        console.error(error);
+
+        res.status(500).json({
+            error:'Failed to resolve emergency'
+        });
+    }
 });
 
 const PORT = process.env.PORT || 3001;

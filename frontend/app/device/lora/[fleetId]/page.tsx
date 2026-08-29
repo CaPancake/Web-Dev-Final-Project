@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useState, useRef } from 'react';
 import LoRaIncomingAlerts from '../LoRaIncomingAlerts';
-import ActiveResponse from '../../ActiveResponse';
+import LoRaActiveResponse from '../LoRaActiveResponse';
 
 export default function LoRaDevicePage() {
     const params = useParams();
@@ -12,6 +12,7 @@ export default function LoRaDevicePage() {
     const audioContextRef = useRef<AudioContext | null>(null);
     const [isAlerting, setIsAlerting] = useState(false);
     const alertTimeout = useRef<ReturnType<typeof setTimeout> | null> (null);
+    const [responseRefreshKey, setResponseRefreshKey] = useState(0);
     
 // beep sounds
 
@@ -102,6 +103,10 @@ function handleAlertSignal() {
 
     } // powerOffDevice func
 
+    function handleResponseRefresh() {
+        setResponseRefreshKey((previous) => previous + 1);
+    }
+
     return (
         <main className="min-h-screen flex items-center justify p-8">
             <div className="w-90 rounded-3xl border-4 border-gray-4
@@ -132,14 +137,19 @@ function handleAlertSignal() {
                 </button>
 
                 {isPoweredOn ? (
+                    <> 
                     <div
                     className="rounded-xl bg-green-200 text-gray-900
                                 p-4 min-h-105">
                     
                     <LoRaIncomingAlerts fleetId={fleetId}
-                                        onAlertSignal={handleAlertSignal} />
-                    
+                                        onAlertSignal={handleAlertSignal}
+                                        onResponseChanged={handleResponseRefresh} />
+
+                    <LoRaActiveResponse fleetId={fleetId}
+                                        refreshKey={responseRefreshKey} />
                     </div>
+                    </>
                 ) : (
                     <div className="text-center mt-12">
                         DEVICE OFFLINE

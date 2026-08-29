@@ -86,8 +86,12 @@ body {
   z-index: 10001 !important;
 }
 
-.leaflet-pop-up-pane {
-  z-index: 10000 !important;
+.leaflet-popup-pane {
+    z-index: 10000 !important;
+}
+
+.leaflet-popup {
+    z-index: 10000 !important;
 }
 
 @keyframes loraBlink {
