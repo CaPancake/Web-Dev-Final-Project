@@ -1,9 +1,18 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import LoRaIncomingAlerts from '../LoRaIncomingAlerts';
 import LoRaActiveResponse from '../LoRaActiveResponse';
+import { Battery, BatteryLow, BatteryMedium, BatteryFull, Power } from 'lucide-react';
+
+type DeviceInfo = {
+    id_fleet: number;
+    has_lora: number;
+    dev_EUI: string | null;
+    lora_battery: number | null;
+    is_working_defi: number;
+}
 
 export default function LoRaDevicePage() {
     const params = useParams();
@@ -13,7 +22,8 @@ export default function LoRaDevicePage() {
     const [isAlerting, setIsAlerting] = useState(false);
     const alertTimeout = useRef<ReturnType<typeof setTimeout> | null> (null);
     const [responseRefreshKey, setResponseRefreshKey] = useState(0);
-    
+    const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+
 // beep sounds
 
 function playAlertSound() {
@@ -27,8 +37,8 @@ function playAlertSound() {
 
         function beep(delay: number, duration: number) {
             setTimeout(() => {
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
+                const osc = audioContext!.createOscillator();
+                const gain = audioContext!.createGain();
 
                 osc.type = 'square';
                 osc.frequency.value = 850;
@@ -36,7 +46,7 @@ function playAlertSound() {
                 gain.gain.value = 0.08;
 
                 osc.connect(gain);
-                gain.connect(audioContext.destination);
+                gain.connect(audioContext!.destination);
 
                 osc.start();
                 setTimeout (() => {
@@ -94,7 +104,7 @@ function handleAlertSignal() {
 
     function powerOffDevice() {
         if(!audioContextRef.current) {
-            audioContextRef.current.close();
+            audioContextRef.current!.close();
             audioContextRef.current = null;
         }
 
@@ -106,6 +116,27 @@ function handleAlertSignal() {
     function handleResponseRefresh() {
         setResponseRefreshKey((previous) => previous + 1);
     }
+
+    useEffect(() => {
+        async function loadDeviceInfo() {
+            try {
+                const response = await fetch(`
+                    http://localhost:3001/api/fleet/${fleetId}/device-info`);
+                if(!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+
+                setDeviceInfo(data);
+            }
+            catch(error) {
+                console.error('Failed to fetch LoRa Device Data', error);
+            }
+        }
+
+        loadDeviceInfo();
+    }, [fleetId]);
 
     return (
         <main className="min-h-screen flex items-center justify p-8">
@@ -127,12 +158,38 @@ function handleAlertSignal() {
                             </span>
                 </div>
 
+               {isPoweredOn && deviceInfo && deviceInfo.lora_battery !== null && (
+                    <div className="flex items-center justify-between w-full font-sans">
+
+                    {deviceInfo.lora_battery <= 20 ? (
+                    <span className="font-bold text-red-700">
+                        ⚠ Maintenance Required </span>
+                    ) : (
+                    <span className="text-green-700">
+                        Operational
+                    </span>
+                    )}
+
+                <div className="flex items-center gap-2 text-white">
+                <span>{deviceInfo.lora_battery}%</span>
+
+                {deviceInfo.lora_battery <= 20 ? (
+                    <BatteryLow size={22} color="red" />
+                ) : deviceInfo.lora_battery <= 60 ? (
+                    <BatteryMedium size={22} color="white" />
+                ) : (
+                    <BatteryFull size={22} color="white" />
+                )}
+            </div>
+
+            </div>
+            )}
                 <button
                     onClick={isPoweredOn ? powerOffDevice : powerOnDevice}
                     className= {` ${isPoweredOn ? 
-                                'w-full mb-4 py-2 bg-gray-500 text-whiter rounded-lg font-bold'
-                                : 'w-full mb-4 py-2 bg-white text-whiter rounded-lg font-bold'} `} >
-
+                                'flex justify-center gap-2 w-full mb-4 py-2 bg-gray-500 text-black rounded-lg font-bold font-sans mt-1'
+                                : 'flex justify-center gap-2 w-full mb-4 py-2 bg-white text-black rounded-lg font-bold font-sans mt-1'} `} >
+                    <Power/>
                      {isPoweredOn ? 'POWER OFF' : 'POWER ON'}
                 </button>
 
