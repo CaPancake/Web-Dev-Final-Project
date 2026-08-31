@@ -5,6 +5,7 @@ const cors = require('cors')
 const db = require('./db');
 
 const { findCandidates, haversineDistance } = require('./services/candidateService');
+const { Eraser } = require('lucide-react');
 
 const app = express();
 
@@ -640,6 +641,7 @@ app.get('/api/fleet/:id/device-info', async (req, res) => {
                 f.id_fleet,
                 f.has_lora,
                 f.dev_EUI,
+                f.has_defi,
                 f.lora_battery,
                 f.is_working_defi,
                 u.first_name,
@@ -647,7 +649,7 @@ app.get('/api/fleet/:id/device-info', async (req, res) => {
                 FROM fleet f
                 JOIN users u
                 ON u.id_user = f.id_user
-                WHERE f.id_user = ?
+                WHERE f.id_fleet = ?
             `, [fleetId]);
 
             if(rows.length === 0) {
@@ -802,6 +804,243 @@ app.post('/api/emergencies/:id/resolve', async(req, res) => {
         res.status(500).json({
             error:'Failed to resolve emergency'
         });
+    }
+});
+
+app.post('/api/register', async (req,res) => {
+    const connection = await db.getConnection();
+
+    try {
+        const {
+            first_name,
+            last_name,
+            phone,
+            has_defi,
+            has_lora,
+            dev_EUI, 
+            med_training,
+        } = req.body;
+
+        // required fields
+        if(!first_name || !phone) {
+            return res.status(400).json({
+                error:'First name and phone are required!'
+            });
+        }
+
+        // participant must have a defi or a lora
+        if(!has_defi && !has_lora) {
+            return res.status(400).json({
+                error: 'Participant must have a defibrillator or LoRa device'
+            });
+        }
+
+        // a LoRa participant must submit it's DEV_EUI
+        if(has_lora && !dev_EUI) {
+            return res.status(400).json({
+                error:'Dev EUI is required for LoRa participant'
+            });
+        }
+
+        await connection.beginTransaction();
+
+        // 1. create user
+        const [userResult] = await connection.query(`
+            INSERT INTO users (first_name, last_name, phone)
+            VALUES (?, ?, ?)`, [first_name, last_name || '', phone]);
+
+        const userId = userResult.insertId;
+
+        const [fleetResult] = await connection.query(`
+            INSERT INTO fleet 
+            (id_user,
+            has_defi,
+            has_lora,
+            dev_EUI,
+            med_training,
+            lora_battery,
+            is_working_defi)
+            VALUES(?, ?, ?, ?, ?, ?, ?)  
+        `, [userId, has_defi ? 1 : 0, has_lora ? 1 : 0, 
+                  dev_EUI || null, med_training || null, null,
+                  has_defi ? 1 : 0]);
+
+        await connection.commit();
+
+        res.status(201).json({
+            message:'Registration completed successfully',
+            id_user: userId,
+            id_fleet: fleetResult.insertId,
+        });
+
+    }
+    catch(error) {
+
+        await connection.rollback();
+        console.error('Registration failed', error);
+
+        if(error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({
+                error:'Phone number or LoRa DEV EUI already in use'
+            });
+        }
+
+        res.status(500).json({
+            error:'Failed to register participant'
+        });
+    }
+    finally {
+        connection.release();
+    }
+});
+
+app.post('/api/participant-login', async (req, res) => {
+
+    try {
+        const { first_name, phone } = req.body;
+
+        if(!first_name || !phone) {
+            return res.status(400).json({
+                error: 'First name and phone are required'
+            });
+        }
+
+        const [rows] = await db.query(`
+            SELECT 
+            u.id_user,
+            u.first_name,
+            u.last_name,
+            u.phone,
+            f.id_fleet,
+            f.has_defi,
+            f.has_lora,
+            f.dev_EUI
+            FROM users u
+            JOIN fleet f
+                ON f.id_user = u.id_user
+            WHERE u.first_name = ? 
+                AND u.phone = ?`, [first_name, phone]);
+
+        if(rows.length === 0) {
+            return res.status(404).json({
+                error: 'המשתמש לא נמצא במערכת'
+            });
+        }
+
+        const participant = rows[0];
+
+        res.json({
+            id_user: participant.id_user,
+            id_fleet: participant.id_fleet,
+            first_name: participant.first_name,
+            last_name: participant.last_name,
+            has_defi: participant.has_defi,
+            has_lora: participant.has_lora
+        });
+    }
+    catch(error) {
+        console.error('Participant login failed', error);
+
+        res.status(500).json({
+            error:'Failed to identify participant'
+        })
+    }
+
+});
+
+app.post('/api/fleet/:id/heartbeat', async (res, req) => {
+    const connection = await db.getConnection();
+
+    try {
+        const fleetId = Number(req.params.id);
+        const { battery, latitude, longitude } = req.body;
+
+        if(!fleetId) {
+            return res.status(400).json({
+                error: 'Invalid fleet ID'
+            });
+        }
+
+        if(battery === undefined || battery === null) {
+            return res.status(400).json({
+                error: 'Battery level is required'
+            });
+        }
+
+        if(latitude === undefined || longitude === undefined) {
+            return res.status(400).json({
+                error:'Latitude and longitude are required'
+            });
+        }
+
+        if(Number(battery) < 0 || Number(battery) > 100) {
+            return res.status(400).json({
+                error:'Battery level must be between 0 to 100'
+            });
+        }
+
+        await connection.beginTransaction();
+
+        const [fleetRows] = await connection.query(`
+            SELECT 
+                id_fleet,
+                has_lora,
+            FROM fleet
+            WHERE id_fleet = ?`, [fleetId]);
+
+        if(fleetRows.length === 0) {
+            await connection.rollback();
+
+            return res.status(404).json({
+                error:'Fleet member not found'
+            });
+        }
+
+        if(!fleetRows[0].has_lora) {
+            await connection.rollback();
+
+            return res.status(404).json({
+                error:'This fleet member does not have a LoRa device'
+            });
+        }
+
+        await connection.query(`
+            UPDATE fleet
+            SET lora_battery = ?
+            WHERE id_fleet = ?
+            `, [Number(battery), fleetId]);
+
+        const [locationResult] = await connection.query(`
+            INSERT INTO locations
+            id_fleet, 
+            latitude,
+            longitude,
+            time_of_transmit)
+            VALUES(?, ?, ?, NOW())`, [fleetId, Number(latitude, longitude)]);
+
+        await connection.commit();
+
+        res.status(200).json({
+            message:'LoRa heartbeat received',
+            id_fleet: fleetId,
+            battery: Number(battery),
+            latitude: Number(battery),
+            longitude: Number(longitude),
+            id_location: locationResult.insertId
+        });
+
+    }
+    catch (error) {
+
+        await connection.rollback();
+        console.error('Heartbeat failed:', error);
+
+        res.status(500).json({
+            error: 'Failed to process LoRa heartbeat'
+        });
+    }
+    finally {
+        connection.release();
     }
 });
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Siren, Bike, MapPin, SatelliteDish, MoveLeft, Smartphone } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 
 const FleetMap = dynamic(
   () => import('@/app/FleetMap'),
@@ -28,6 +29,16 @@ type FleetItem = {
   time_of_transmit: string | null;
 };
 
+type ReigsterationForm = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+
+   participantType: 'DEFIBRILLATOR' | 'LORA' | 'DEFIBRILLATOR_WITH_LORA';
+   devEUI: string;
+   medicalTraining: string;
+}
+
 type Emergency = {
   id_emergency: number;
   latitude: number;
@@ -44,14 +55,23 @@ export default function Home() {
   const [emergencies, setEmergencies] =
     useState<Emergency[]>([]);
 
-  const [
-    selectedEmergencyId,
-    setSelectedEmergencyId
-  ] = useState<number | null>(null);
+  const [selectedEmergencyId, setSelectedEmergencyId] = useState<number | null>(null);
 
-  const [candidates, setCandidates] =
-    useState<FleetItem[]>([]);
+  const [candidates, setCandidates] =useState<FleetItem[]>([]);
 
+  const [form, setForm] = useState<ReigsterationForm>({
+    firstName:'', lastName:'', phone:'', participantType:'DEFIBRILLATOR', 
+    devEUI:'', medicalTraining:''
+  });
+
+   const hasDefi =
+    form.participantType === 'DEFIBRILLATOR' ||
+    form.participantType === 'DEFIBRILLATOR_WITH_LORA';
+
+  const hasLora = form.participantType === 'LORA' ||
+    form.participantType === 'DEFIBRILLATOR_WITH_LORA';
+
+  const [registrationMessage, setRegistrationMessage] = useState('');
 
   useEffect(() => {
 
@@ -120,6 +140,76 @@ export default function Home() {
     setCandidates([]);
   }
 
+  async function handleRegistration(
+    event: React.FormEvent<HTMLElement>) 
+    { 
+       event.preventDefault();
+
+  const registrationData = {
+    first_name: form.firstName,
+    last_name: form.lastName || null,
+    phone: form.phone,
+
+    has_defi: hasDefi,
+    has_lora: hasLora,
+
+    dev_EUI:
+      hasLora
+        ? form.devEUI
+        : null,
+
+    med_training:
+      form.medicalTraining || null
+  };
+
+
+  try {
+
+    const response = await fetch(
+      'http://localhost:3001/api/register',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(registrationData)
+      }
+    );
+
+
+    const data = await response.json();
+
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Registration failed');
+    }
+
+
+    setRegistrationMessage('ההרשמה הושלמה בהצלחה!');
+
+
+    setForm({firstName: '', lastName: '', phone: '',
+      participantType: 'DEFIBRILLATOR', devEUI: '', medicalTraining: ''});
+
+  } catch (error) {
+
+    console.error('Registration failed:', error);
+
+  if (error instanceof Error) {
+    setRegistrationMessage(
+      `אירעה שגיאה בהרשמה: ${error.message}`
+    );
+  }
+
+    setRegistrationMessage('אירעה שגיאה בהרשמה');
+  }
+
+}
+
+
+
   /*
    * Small statistics for dashboard.
    */
@@ -166,15 +256,29 @@ export default function Home() {
             </a>
 
             <a href="#fleet" className="hover:text-red-400">
-              מכשירים
+              המתנדבים
             </a>
 
+            <a href="#purchase" className="hover:text-red-400">
+             רכישת LoRa
+            </a>
+ 
           </div>
+          <div className="flex items-center gap-3">
 
-          <a href="#register" className=" bg-red-600 hover:bg-red-700 px-4 py-2
+            <Link href="/login" className="border border-slate-600
+            hover:bg-white/10 px-4 py-2 rounded-lg font-bold text-sm">
+              כניסה
+            </Link>
+
+            <a href="#register" className=" bg-red-600 hover:bg-red-700 px-4 py-2
               rounded-lg font-bold text-sm">
             הצטרפו לרשת
           </a>
+          </div>
+          
+
+
         </div>
       </nav>
 
@@ -530,16 +634,12 @@ export default function Home() {
 
           <div
             className="
-              overflow-x-auto
-              rounded-2xl
-              border
-              border-slate-200
-            "
-          >
+              max-h-105 overflow-x-auto overflow-y-auto 
+              rounded-2xl border border-slate-200">
 
-            <table className="w-full text-sm">
+              <table className="w-full text-sm">
 
-              <thead className="bg-slate-100">
+              <thead className="w-full text-sm bg-slate-100">
 
                 <tr>
 
@@ -659,46 +759,194 @@ export default function Home() {
 
       </section>
 
+       {/* Purchase LoRa */}
+
+      <section id="purchase" className="bg-slate-100 py-20">
+          <div className="max-w-7xl mx-auto px-6">
+
+              <div className="text-center mb-12">
+
+              <p className="text-red-600 font-semibold mb-3">
+                 עזרו לנו להרחיב את הרשת
+                </p>
+
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+               רכישת מכשיר LoRa
+            </h2>
+
+            <p className="max-w-3xl mx-auto text-slate-600 leading-7">
+               ניתן להצטרף לרשת גם באמצעות מכשיר LoRa בלבד.
+               בעת הרכישה יש לוודא בחירת דגם התומך בתדר
+              <strong> 433 MHz </strong>
+             בהתאם לדרישות המיזם.
+            </p>
+
+          </div>
+
+
+      <div className="grid md:grid-cols-3 gap-6">
+
+        {/* LILYGO */}
+
+        <div
+        className=" bg-white border border-slate-200 rounded-2xl
+          p-7 shadow-sm  flex flex-col">
+
+        <div className="text-4xl mb-4">
+          <img src={"https://lilygo.cc/cdn/shop/files/LILYGO-T-LORA-PAGER_3_2e55c5fa-aa11-49eb-b5bd-cbc4268eea92.jpg?v=1760066823&width=493"}/>
+        </div>
+
+        <h3 className="text-xl font-bold mb-2">
+          LILYGO
+        </h3>
+
+        <p className="text-slate-600 mb-4 leading-6">
+          מכשירי LoRa תואמי Meshtastic.
+          קיימים דגמים עם אפשרות לתדר 433 MHz.
+        </p>
+
+        <div
+          className=" inline-block self-start bg-amber-100  text-amber-800
+            text-sm font-bold px-3 py-1 rounded-full mb-6">
+          יש לבחור 433 MHz
+        </div>
+
+        <a
+          href="https://lilygo.cc/products/t-lora-pager-meshtastic"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="
+            mt-auto
+            bg-slate-900
+            hover:bg-slate-800
+            text-white
+            text-center
+            rounded-lg
+            py-3
+            font-bold
+          "
+        >
+          מעבר לאתר הרכישה
+        </a>
+
+      </div>
+
+
+      {/* RAKWIRELESS */}
+
+      <div
+        className=" bg-white border border-slate-200 rounded-2xl p-7
+                   shadow-sm flex flex-col">
+
+        <div className="text-4xl mb-4">
+          <img src={"https://store.rakwireless.com/cdn/shop/products/rak4631-l-isometric_4000x.progressive.png?v=1669697021"}/>
+        </div>
+
+        <h3 className="text-xl font-bold mb-2">
+          RAKwireless
+        </h3>
+
+        <p className="text-slate-600 mb-4 leading-6">
+          רכיבי LoRa חסכוניים באנרגיה המתאימים
+          לפרויקטים ניידים ורשתות Mesh.
+          קיימת גרסת 433–470 MHz.
+        </p>
+
+        <div
+          className=" inline-block self-start bg-amber-100
+            text-amber-800 text-sm font-bold px-3 py-1
+            rounded-full mb-6">
+          433–470 MHz
+        </div>
+
+        <a
+          href="https://store.rakwireless.com/products/rak4631-lpwan-node"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="
+            mt-auto
+            bg-slate-900
+            hover:bg-slate-800
+            text-white
+            text-center
+            rounded-lg
+            py-3
+            font-bold
+          "
+        >
+          מעבר לאתר הרכישה
+        </a>
+
+      </div>
+
+
+      {/* third option */}
+
+      <div
+        className=" bg-white border border-slate-200
+          rounded-2xl p-7 shadow-sm flex flex-col">
+
+        <div className="text-4xl mb-4">
+          <img src={"https://store.rakwireless.com/cdn/shop/files/20230710100915_c9f54683-9513-4872-abf2-34d0f6f92e63_4000x.progressive.jpg?v=1732774731"}/>
+        </div>
+
+        <h3 className="text-xl font-bold mb-2">
+          RAK3172
+        </h3>
+
+        <p className="text-slate-600 mb-4 leading-6">
+          מודול LoRa נוסף המתאים לפיתוח ושילוב
+          במכשירים מותאמים אישית, כולל גרסת
+          EU433.
+        </p>
+
+        <div
+          className="inline-block self-start bg-amber-100
+            text-amber-800 text-sm font-bold px-3 py-1
+            rounded-full mb-6">
+          EU433
+        </div>
+
+        <a
+          href="https://store.rakwireless.com/products/wisduo-lpwan-module-rak3172"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="
+            mt-auto bg-slate-900 hover:bg-slate-800
+            text-white text-center rounded-lg
+             py-3 font-bold">
+          מעבר לאתר הרכישה
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <p
+      className=" text-center text-sm text-slate-500 mt-8">
+      הקישורים מוצגים לצורכי מידע והדגמת המיזם בלבד.
+      יש לבדוק תאימות תדר ורגולציה לפני רכישה ושימוש בפועל.
+    </p>
+
+      </div>
+    </section>           
+
 
       {/* join the project */}
 
       <section
         id="register"
-        className="
-          bg-red-700
-          text-white
-          py-20
-        "
-      >
+        className=" bg-red-700 text-white py-20">
 
-        <div
-          className="
-            max-w-4xl
-            mx-auto
-            px-6
-            text-center
-          "
-        >
+        <div className=" max-w-4xl mx-auto px-6 text-center">
 
-          <h2
-            className="
-              text-3xl
-              md:text-4xl
-              font-bold
-              mb-5
-            "
-          >
+          <h2 className="text-3xl md:text-4xl font-bold mb-5">
             רוצים לעזור להרחיב את הרשת?
           </h2>
 
           <p
-            className="
-              text-red-100
-              text-lg
-              leading-8
-              mb-8
-            "
-          >
+            className=" text-red-100 text-lg leading-8 mb-8">
             בעלי דפיברילטורים,
             נשאי LoRa ומתנדבים יכולים
             להצטרף למיזם ולעזור להפוך
@@ -706,20 +954,127 @@ export default function Home() {
             בזמן אמת.
           </p>
 
-          <button
-            className="
-              bg-white
-              text-red-700
-              px-7 py-3
-              rounded-lg
-              font-bold
-              hover:bg-red-50
-            "
-          >
-            הרשמה למיזם
-          </button>
-
         </div>
+
+
+        <form onSubmit={handleRegistration}
+        className="bg-white text-slate-900 rounded-xl p-8
+                  shadow-lg space-y-5">
+
+        <div className="grid md:grid-cols-2 gap-4">
+                
+                <div>
+                  <label className="block font-medium mb-1">
+                    שם פרטי
+                  </label>
+                
+                <input required type="text"
+                value={form.firstName} onChange={(e) => setForm({...form, firstName:e.target.value})}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2"/>
+
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">
+                    שם משפחה
+                  </label>
+
+                  <input type="text" value={form.lastName}
+                  onChange={(e) => setForm({...form, lastName:e.target.value})}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"/>
+                </div>
+          </div>
+
+                <div>
+                  <label className="block font-medium mb-1">
+                    מספר טלפון
+                  </label>
+                  <input required type="tel" value={form.phone} 
+                    onChange={(e) => {setForm({...form, phone: e.target.value})}}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2"/>
+                </div>
+                
+                <div>
+                  <label className="block font-medium mb-1">
+                    איך תרצו להצטרף?
+                  </label>
+
+                  <select value={form.participantType}
+                  onChange={(e) => setForm({...form, participantType: 
+                    e.target.value as ReigsterationForm['participantType']
+                  })}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+
+                    <option value="DEFIBRILLATOR">
+                      יש לי דפיברילטור נייד
+                    </option>
+
+                    <option value="LORA">
+                      יש לי מכשיר LoRa
+                    </option>
+
+                    <option value="DEFIBRILLATOR_WITH_LORA">
+                      יש לי דפיברליטור נייד וגם מכשיר LoRa
+                    </option>
+                  </select>
+                </div>
+
+                {hasLora && (
+                  <div>
+                    <label className="block font-medium mb-1">
+                      מזהה LoRa / devEUI 
+                    </label>
+
+                  <input required type="text" value={form.devEUI}
+                  onChange={(e) => setForm({...form, devEUI: e.target.value})}
+                  className="w-full border border-slate-300 rounded-lg px-3
+                  py-2 font-mono"/>
+                  </div>
+                )}
+
+                <div>
+                
+                <label className="block font-medium">
+                  הכשרה רפואית
+                </label>
+
+                <select value={form.medicalTraining} 
+                        onChange={(e) => setForm({...form, medicalTraining: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+
+                  <option value="First Aid">
+                    עזרה ראשונה
+                  </option>
+
+                  <option value="Medic">
+                  חובש/ת
+                  </option>
+
+                  <option value="Paramedic">
+                    פרמדיק/ית
+                  </option>
+
+                  <option value="Doctor">
+                    רופא/ה
+                  </option>
+
+                </select>
+
+                </div>
+
+                <button
+                className=" bg-red-600 text-white px-7 py-3 rounded-lg
+                       font-bold hover:bg-red-700">
+                       הרשמה למיזם
+                </button>
+
+                {registrationMessage && (
+                  <p className="text-center font-medium">
+                    {registrationMessage}
+                  </p>
+                )}   
+
+        </form>
 
       </section>
 
@@ -752,7 +1107,7 @@ export default function Home() {
 
 
 /*
- * Reusable dashboard statistic card.
+ * Dashboard statistic card.
  */
 function DashboardCard({
   value,
@@ -765,30 +1120,14 @@ function DashboardCard({
   return (
 
     <div
-      className="
-        bg-white
-        border
-        border-slate-200
-        rounded-xl
-        p-5
-      "
-    >
+      className=" bg-white border border-slate-200 rounded-xl p-5">
 
       <div
-        className="
-          text-3xl
-          font-bold
-        "
-      >
+        className="text-3xl font-bold">
         {value}
       </div>
 
-      <div
-        className="
-          text-slate-500
-          mt-1
-        "
-      >
+      <div className=" text-slate-500 mt-1">
         {label}
       </div>
 
