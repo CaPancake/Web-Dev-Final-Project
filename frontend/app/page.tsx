@@ -4,11 +4,55 @@ import { useEffect, useState } from 'react';
 import { Siren, Bike, MapPin, SatelliteDish, MoveLeft, Smartphone } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { describe } from 'node:test';
 
 const FleetMap = dynamic(
   () => import('@/app/FleetMap'),
   { ssr: false }
 );
+
+type HomeContent = {
+  hero: {
+    title: string;
+    subtitles: string;
+  }
+
+  lora: {
+    title: string;
+    description: string;
+  }
+
+  registration: {
+    title: string;
+    description: string;
+  }
+}
+
+const defaultHomeContent: HomeContent = {
+  hero: 
+  {
+    title:'רשת דפיברילטורים חכמה להצלת חיים',
+    subtitles: 'מערכת חכמה לחיבור בין דפיברילטורים, מתנדבים ותקשורת LoRa'
+  },
+  lora: 
+  {
+    title: 'מהי רשת LoRa?', 
+    description: `
+טכנולוגיית תקשורת לטווח ארוך ובהספק נמוך
+המאפשרת העברת מידע גם באזורים שבהם אין חיבור סלולרי זמין.
+
+באמצעות Meshtastic ניתן לייצר רשת Mesh,
+שבה מכשירים מעבירים הודעות זה לזה
+ומרחיבים את טווח הקליטה.
+    `
+
+  },
+  registration: 
+  {
+    title: 'הצטרפו לרשת',
+    description: 'ניתן להצטרף כבעלי דפיברילטור, כמשתתפי LoRa או בשילוב של שניהם.'
+  }
+};
 
 type FleetItem = {
   id_user: number;
@@ -47,6 +91,20 @@ type Emergency = {
   status: string;
 };
 
+type StationaryDefibrillator = {
+  id: number;
+  location_name: string;
+  location_description: string | null;
+  latitude: number;
+  longitude: number;
+  city: string | null;
+  street: string | null;
+  street_num: string | null;
+  floor: string | null;
+  location_hours: string | null;
+  contact_phone: string | null;
+};
+
 export default function Home() {
 
   const [fleet, setFleet] = useState<FleetItem[]>([]);
@@ -64,6 +122,8 @@ export default function Home() {
     devEUI:'', medicalTraining:''
   });
 
+  const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
+
    const hasDefi =
     form.participantType === 'DEFIBRILLATOR' ||
     form.participantType === 'DEFIBRILLATOR_WITH_LORA';
@@ -72,6 +132,9 @@ export default function Home() {
     form.participantType === 'DEFIBRILLATOR_WITH_LORA';
 
   const [registrationMessage, setRegistrationMessage] = useState('');
+
+  const [stationaryDefibrillators, setStationaryDefibrillators] = 
+      useState<StationaryDefibrillator[]>([]);
 
   useEffect(() => {
 
@@ -82,13 +145,18 @@ export default function Home() {
 
       fetch(
         'http://localhost:3001/api/emergencies/active'
+      ).then((response) => response.json()),
+
+      fetch(
+        'http://localhost:3001/api/stationary-defibrillators'
       ).then((response) => response.json())
     ])
 
-    .then(([fleetData, emergencyData]) => {
+    .then(([fleetData, emergencyData, stationaryData]) => {
 
       setFleet(fleetData);
       setEmergencies(emergencyData);
+      setStationaryDefibrillators(stationaryData);
       setLoading(false);
 
     })
@@ -208,6 +276,40 @@ export default function Home() {
 
 }
 
+useEffect (() => {
+  async function loadHomeContent() {
+  try {
+    const response = await fetch(`
+      http://localhost:3002/api/content/home`);
+
+    if(!response.ok) {
+      throw new Error('Failed to load homepage content');
+    }
+
+    const data = await response.json();
+
+    setHomeContent({
+      hero: {
+        title: data.hero?.title ?? defaultHomeContent.hero.title,
+        subtitles: data.hero.subtitle ?? defaultHomeContent.hero.subtitles
+      },
+      lora: {
+        title: data.lora?.title ?? defaultHomeContent.lora.title,
+        description: data.lora?.description ?? defaultHomeContent.lora.description
+      },
+      registration:
+      {
+        title: data.registration?.title ?? defaultHomeContent.registration.title,
+        description: data.registration?.description ?? defaultHomeContent.registration.description
+      }
+    });
+  } // try
+  catch(error) {
+    console.error('Homepage content failed to load', error);
+  }
+  }
+  loadHomeContent();
+}, []);
 
 
   /*
@@ -293,22 +395,17 @@ export default function Home() {
           <div className="max-w-3xl">
 
             <p className=" text-red-400 font-semibold mb-4">
-              רשת קהילתית להצלת חיים
+             רשת קהילתית להצלת חיים 
             </p>
 
             <h1
               className="text-4xl md:text-6xl font-bold leading-tight mb-6">
-              דפיברילטור קרוב
-              <br />
-              יכול לעשות את ההבדל
+              {homeContent.hero.title}
             </h1>
 
             <p className="text-lg md:text-xl text-slate-300
                 leading-8 max-w-2xl mb-9">
-              מערכת המחברת בין דפיברילטורים ניידים,
-              מתנדבים ורשת LoRa כדי לאתר ציוד
-              מציל חיים בקרבת אירוע חירום —
-              גם באזורים בהם הקליטה הסלולרית מוגבלת.
+              {homeContent.hero.subtitles}
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -457,25 +554,11 @@ export default function Home() {
 
             <h2 className=" text-3xl md:text-4xl font-bold
                 mb-6 text-white ">
-              מה זה LoRa?
+             {homeContent.lora.title}
             </h2>
 
             <p className=" text-slate-300 leading-8 text-lg">
-              LoRa היא טכנולוגיית תקשורת
-              ארוכת טווח וחסכונית באנרגיה.
-              במסגרת המיזם היא מאפשרת
-              למכשירים להעביר מיקום,
-              מצב מכשיר והתראות חירום,
-              גם כאשר התקשורת הסלולרית
-              מוגבלת.
-            </p>
-
-            <p className=" text-slate-300 leading-8 text-lg mt-4 font-sans">
-              באמצעות Meshtastic,
-              מכשירי LoRa יכולים ליצור
-              רשת Mesh שבה מכשירים
-              מעבירים הודעות זה עבור זה
-              ומרחיבים את טווח הרשת.
+               {homeContent.lora.description}
             </p>
 
           </div>
@@ -561,13 +644,14 @@ export default function Home() {
               label="משתמשים ברשת"/>
 
             <DashboardCard value={defibrillators}
-              label="דפיברילטורים"/>
+              label="דפיברילטורים ניידים"/>
 
-            <DashboardCard value={workingDefibrillators}
-              label="דפיברילטורים תקינים"/>
 
             <DashboardCard value={loraDevices}
               label="מכשירי LoRa"/>
+
+            <DashboardCard value={stationaryDefibrillators.length}
+              label="דפיברילטורים נייחים"/>
 
           </div>
 
@@ -588,6 +672,7 @@ export default function Home() {
             ) : (
 
               <FleetMap key="fleet-map" fleet={fleet}
+              stationaryDefibrillators={stationaryDefibrillators}
                 emergencies={emergencies}
                 selectedEmergencyId={
                   selectedEmergencyId
@@ -603,6 +688,14 @@ export default function Home() {
             )}
 
           </div>
+
+           <p className="text-center">
+                 המידע אודות הדפיברילטורים הנייחים תודות ל
+                 <a href="https://defi.co.il/#/map"
+                 className="font-bold">
+                 "איפה דפי"
+                 </a>
+          </p>
 
         </div>
 
@@ -678,12 +771,7 @@ export default function Home() {
 
                   <tr
                     key={item.id_fleet}
-                    className="
-                      border-t
-                      border-slate-200
-                      hover:bg-slate-50
-                    "
-                  >
+                    className=" border-t border-slate-200 hover:bg-slate-50">
 
                     <td className="p-4 font-medium">
                       {item.first_name}{' '}
@@ -722,22 +810,14 @@ export default function Home() {
                       {item.is_working_defi ? (
 
                         <span
-                          className="
-                            text-green-700
-                            font-medium
-                          "
-                        >
+                          className=" text-green-700 font-medium">
                           תקין
                         </span>
 
                       ) : (
 
                         <span
-                          className="
-                            text-red-700
-                            font-medium
-                          "
-                        >
+                          className=" text-red-700 font-medium">
                           לא זמין
                         </span>
 
@@ -942,16 +1022,12 @@ export default function Home() {
         <div className=" max-w-4xl mx-auto px-6 text-center">
 
           <h2 className="text-3xl md:text-4xl font-bold mb-5">
-            רוצים לעזור להרחיב את הרשת?
+           {homeContent.registration.title}
           </h2>
 
           <p
             className=" text-red-100 text-lg leading-8 mb-8">
-            בעלי דפיברילטורים,
-            נשאי LoRa ומתנדבים יכולים
-            להצטרף למיזם ולעזור להפוך
-            ציוד מציל חיים לזמין יותר
-            בזמן אמת.
+           {homeContent.registration.description}
           </p>
 
         </div>

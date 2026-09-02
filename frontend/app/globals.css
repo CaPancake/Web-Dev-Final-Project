@@ -108,3 +108,36 @@ body {
 .lora-blink {
   animation: loraBlink 0.5s infinite;
 }
+
+@keyframes sirenPulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes splashFadeOut {
+  0%,
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.siren-pulse {
+  animation: sirenPulse 1s ease-in-out infinite;
+}
+
+.splash-fade {
+  animation: splashFadeOut 2s ease forwards;
+}

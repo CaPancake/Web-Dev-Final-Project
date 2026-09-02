@@ -216,11 +216,12 @@ export default function LoginPage() {
               ואירועים.
             </p>
 
-            <div
+            <Link
+                href="/admin/login"
               className=" mt-auto bg-slate-800 text-slate-400
                 rounded-lg py-3 text-center font-bold">
               כניסת מנהל
-            </div>
+            </Link>
           </div>
         </div>
 

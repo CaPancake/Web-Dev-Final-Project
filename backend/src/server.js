@@ -7,6 +7,8 @@ const db = require('./db');
 const { findCandidates, haversineDistance } = require('./services/candidateService');
 const { Eraser } = require('lucide-react');
 
+const authAdmin = require('./middleware/authAdmin');
+
 const app = express();
 
 // enable frontend to access numerous back ports
@@ -1042,6 +1044,266 @@ app.post('/api/fleet/:id/heartbeat', async (res, req) => {
     finally {
         connection.release();
     }
+});
+
+app.get('/api/admin/stats', authAdmin, async (req, res) => {
+    try {
+        const [[fleetRows], [defiRows], [loraRows], [emergencyRows]
+        ] = await Promise.all([
+            db.query(`
+                SELECT COUNT(*) AS count
+                FROM fleet
+            `),
+
+            db.query(`
+                SELECT COUNT(*) AS count
+                FROM fleet
+                WHERE has_defi = 1
+                  AND is_working_defi = 1
+            `),
+
+            db.query(`
+                SELECT COUNT(*) AS count
+                FROM fleet
+                WHERE has_lora = 1
+            `),
+
+            db.query(`
+                SELECT COUNT(*) AS count
+                FROM emergencies
+                WHERE status != 'RESOLVED'
+            `)
+        ]);
+
+        res.json({
+            totalFleet: fleetRows[0].count,
+            activeDefibrillators: defiRows[0].count,
+            loraDevices: loraRows[0].count,
+            activeEmergencies: emergencyRows[0].count
+        });
+
+    } catch (error) {
+        console.error('Failed to load admin stats:', error);
+
+        res.status(500).json({
+            error: 'Failed to load admin statistics'
+        });
+    }
+});
+
+app.get('/api/admin/fleet', authAdmin, async (req, res) => {
+    try {
+
+        const [rows] = await db.query(`
+            SELECT 
+            u.id_user,
+            u.first_name,
+            u.last_name,
+            u.phone,
+            
+            f.id_fleet,
+            f.has_defi,
+            f.has_lora,
+            f.lora_battery,
+            f.dev_EUI,
+            f.med_training,
+            f.is_working_defi,
+            
+            l.latitude,
+            l.longitude,
+            l.time_of_transmit
+            
+            FROM fleet f
+            JOIN users u
+            ON u.id_user = f.id_user
+            
+            LEFT JOIN(
+            SELECT 
+            id_fleet,
+            latitude,
+            longitude,
+            time_of_transmit,
+            ROW_NUMBER() OVER (
+            PARTITION BY id_fleet
+                ORDER BY time_of_transmit DESC,
+                        id_location DESC
+            ) AS rn 
+            FROM locations ) l
+            ON l.id_fleet = f.id_fleet
+            AND l.rn = 1
+            ORDER BY u.first_name, u.last_name `);
+
+            res.json(rows);
+
+    } // try block
+    catch (error) {
+
+        console.error('Failed to load admin fleet:', error);
+        res.status(500).json({
+            error:'Failed to load fleet'
+        });
+
+    } // catch block
+});
+
+app.delete('/api/admin/users/:userId', authAdmin, async (req, res) => {
+    try {
+        const userId = Number(req.params.userId);
+
+        //console.log('Delete requested for userId:', userId);
+
+        const [result] = await db.query(
+            `
+            DELETE FROM users
+            WHERE id_user = ?
+            `,
+            [userId]
+        );
+
+        //console.log('Delete result:', result);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: 'User not found'
+            });
+        }
+
+        res.json({
+            message: 'User removed successfully'
+        });
+
+    } catch (error) {
+        console.error(
+            'Failed to remove user:',
+            error
+        );
+
+        res.status(500).json({
+            error: 'Failed to remove user'
+        });
+    }
+});
+
+app.put('/api/admin/fleet/:fleetId', authAdmin, async (req, res) => {
+        
+    const connection = await db.getConnection();
+
+        try {
+            const fleetId = Number(req.params.fleetId);
+
+        const { first_name, last_name, phone,
+            med_training, has_defi, has_lora, dev_EUI, lora_battery,
+                is_working_defi } = req.body;
+
+            await connection.beginTransaction();
+
+            const [rows] = await connection.query(
+                    `
+                    SELECT id_user
+                    FROM fleet
+                    WHERE id_fleet = ?
+                    `,
+                    [fleetId]);
+
+            if (rows.length === 0) {
+                await connection.rollback();
+
+                return res.status(404).json({
+                    error: 'Fleet member not found'
+                });
+            }
+
+            const userId = rows[0].id_user;
+
+            await connection.query(
+                `
+                UPDATE users
+                SET
+                    first_name = ?,
+                    last_name = ?,
+                    phone = ?
+                WHERE id_user = ?
+                `,
+                [
+                    first_name, last_name || null,
+                    phone, userId
+                ]
+            );
+
+            await connection.query(
+                `
+                UPDATE fleet
+                SET
+                    med_training = ?,
+                    has_defi = ?,
+                    has_lora = ?,
+                    dev_EUI = ?,
+                    lora_battery = ?,
+                    is_working_defi = ?
+                WHERE id_fleet = ?
+                `,
+                [
+                    med_training || null,
+                    has_defi ? 1 : 0,
+                    has_lora ? 1 : 0,
+                    has_lora
+                        ? dev_EUI || null
+                        : null,
+                    has_lora
+                        ? lora_battery
+                        : null,
+                    has_defi
+                        ? (is_working_defi ? 1 : 0)
+                        : 0,
+                    fleetId
+                ]
+            );
+
+            await connection.commit();
+
+            res.json({message: 'Fleet member updated successfully' });
+
+        } catch (error) {
+            await connection.rollback();
+
+            console.error('Failed to update fleet member:', error);
+
+            res.status(500).json({
+                error: 'Failed to update fleet member'
+            });
+
+        } finally {
+            connection.release();
+        }
+    }
+);
+
+app.get('/api/stationary-defibrillators', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        id,
+        location_name,
+        location_description,
+        latitude,
+        longitude,
+        city,
+        street,
+        street_num,
+        floor,
+        location_hours,
+        contact_phone
+      FROM stationary_defibrillators
+    `);
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Failed to load stationary defibrillators:', error);
+
+    res.status(500).json({
+      error: 'Failed to load stationary defibrillators'
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
