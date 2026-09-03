@@ -180,7 +180,7 @@ export default function Home() {
     try {
 
       const response = await fetch(
-        `http://localhost:3001/api/emergencies/${id}/candidates?radiusKm=5`
+        `http://localhost:3001/api/emergencies/${id}/candidates`
       );
 
       if (!response.ok) {
@@ -193,12 +193,17 @@ export default function Home() {
 
       console.log( 'Candidates returned:', data);
 
-      setCandidates(Array.isArray(data) ? data : []);
+      const candidateList = Array.isArray(data) ? data
+                        : Array.isArray(data.candidates) ? data.candidates
+                        : [];
 
-      setSelectedEmergencyId(id);
+      console.log('Candidate list:', candidateList);
+
+    setCandidates(candidateList);
+    setSelectedEmergencyId(id);
 
     } catch (error) {
-      console.error(error);
+      console.error('Candidate fetch failed:', error);
     }
   }
 

@@ -11,7 +11,7 @@ import {
 import L from 'leaflet';
 
 type Props = {
-    selectLocation: [number, number] | null;
+    selectedLocation: [number, number] | null;
 
     onSelect: (
         location: [number, number] 

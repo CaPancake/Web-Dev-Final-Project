@@ -4,8 +4,8 @@ ONE TIME USE ONLY --> used for inserting admin user.
 require('dotenv').config();
 
 const bcrypt = require('bcrypt');
-const connectDB = require('../db');
-const Admin = require('./admin');
+const connectDB = require('./db');
+const Admin = require('./models/admin');
 
 async function insertAdmin() {
     try {

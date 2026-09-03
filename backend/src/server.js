@@ -3,11 +3,15 @@ require('dotenv').config();
 const express = require('express')
 const cors = require('cors')
 const db = require('./db');
+const jwt = require('jsonwebtoken');
 
 const { findCandidates, haversineDistance } = require('./services/candidateService');
 const { Eraser } = require('lucide-react');
 
 const authAdmin = require('./middleware/authAdmin');
+const authParticipant = require('./middleware/authParticipant');
+
+const { getSystemSettings } = require('./services/settingsService');
 
 const app = express();
 
@@ -208,8 +212,11 @@ app.get('/api/fleet/latest-locations', async (req, res) => {
     app.get('/api/emergencies/:id/candidates', async(req, res) => {
 
         try {
-            const radiusKm = Number(req.query.radiusKm ?? 5);
-        const candidates = await findCandidates(
+            const settings = await getSystemSettings();
+
+            const radiusKm = settings.candidateRadiusKm;
+
+            const candidates = await findCandidates(
             req.params.id,
             radiusKm
         );
@@ -219,7 +226,7 @@ app.get('/api/fleet/latest-locations', async (req, res) => {
 
         catch (error){
             console.error(error);
-            res.statusMessage(500).json({
+            res.status(500).json({
                 error:'Failed to fetch relevant candidates'
             });
         }
@@ -635,42 +642,67 @@ app.post('/api/emergencies/:id/start-navigation', async (req, res) => {
 
 
 app.get('/api/fleet/:id/device-info', async (req, res) => {
+        try {
+            const fleetId = Number(req.params.id);
 
-      try {
-        const fleetId = Number(req.params.id);
-        const[rows] = await db.query(`
-            SELECT
-                f.id_fleet,
-                f.has_lora,
-                f.dev_EUI,
-                f.has_defi,
-                f.lora_battery,
-                f.is_working_defi,
-                u.first_name,
-                u.last_name
-                FROM fleet f
-                JOIN users u
-                ON u.id_user = f.id_user
-                WHERE f.id_fleet = ?
-            `, [fleetId]);
-
-            if(rows.length === 0) {
-                return res.status(404).json({
-                    error:'Fleet member not found'
-                });
+            if (!fleetId) {
+                return res.status(400).json({
+                    error: 'Invalid fleet ID'});
             }
+            const [rows] = await db.query(
+                    `
+                    SELECT
+                        f.id_fleet,
 
+                        u.first_name,
+                        u.last_name,
+                        u.phone,
+
+                        f.has_defi,
+                        f.has_lora,
+                        f.dev_EUI,
+                        f.med_training,
+                        f.lora_battery,
+                        f.is_working_defi,
+
+                        l.latitude,
+                        l.longitude,
+                        l.time_of_transmit
+
+                    FROM fleet f
+
+                    JOIN users u
+                        ON u.id_user = f.id_user
+
+                    LEFT JOIN locations l
+                        ON l.id_location = (
+                            SELECT l2.id_location
+                            FROM locations l2
+                            WHERE l2.id_fleet = f.id_fleet
+                            ORDER BY
+                                l2.time_of_transmit DESC,
+                                l2.id_location DESC
+                            LIMIT 1
+                        )
+
+                    WHERE f.id_fleet = ?
+                    `,[fleetId]);
+
+
+            if (rows.length === 0) {
+                return res.status(404).json({
+                    error: 'Fleet member not found'});
+            }
             res.json(rows[0]);
 
-      } // try block
-      catch (error) {
-        console.error(error);
+        } catch (error) {
 
-        res.status(500).json({
-            error:'Failed to load device information'
-        });
-      } // catch block
-});
+            console.error('Failed to fetch device info:',error);
+
+            res.status(500).json({
+                error: 'Failed to fetch device information' });
+        }}
+);
 
 app.get('/api/emergencies/:id/arrival-check', async (req, res) => {
     try {
@@ -719,11 +751,16 @@ app.get('/api/emergencies/:id/arrival-check', async (req, res) => {
 
             const distanceMeters = distanceKm * 1000;
 
-            const arrived = distanceMeters <= 50;
+            const settings = await getSystemSettings();
+
+            arrivalThreshold = settings.arrivalThresholdMeters;
+
+            const arrived = distanceMeters <= arrivalThreshold;
 
             res.json({
                 arrived,
-                distanceMeters
+                distanceMeters,
+                arrivalThreshold
             });
 
     } // try block
@@ -776,7 +813,11 @@ app.post('/api/emergencies/:id/resolve', async(req, res) => {
             Number(emergency.longitude)
         ) * 1000;
 
-        if(distanceMeters > 50) {
+        const settings = await getSystemSettings();
+
+        const arrival = settings.arrivalThresholdMeters;
+
+        if(distanceMeters > arrival) {
             return res.status(409).json({
                 error:'Responder has not arrived yet'
             });
@@ -897,11 +938,10 @@ app.post('/api/register', async (req,res) => {
 });
 
 app.post('/api/participant-login', async (req, res) => {
-
     try {
         const { first_name, phone } = req.body;
 
-        if(!first_name || !phone) {
+        if (!first_name || !phone) {
             return res.status(400).json({
                 error: 'First name and phone are required'
             });
@@ -909,53 +949,134 @@ app.post('/api/participant-login', async (req, res) => {
 
         const [rows] = await db.query(`
             SELECT 
-            u.id_user,
-            u.first_name,
-            u.last_name,
-            u.phone,
-            f.id_fleet,
-            f.has_defi,
-            f.has_lora,
-            f.dev_EUI
+                u.id_user,
+                u.first_name,
+                u.last_name,
+                u.phone,
+                f.id_fleet,
+                f.has_defi,
+                f.has_lora,
+                f.dev_EUI
             FROM users u
             JOIN fleet f
                 ON f.id_user = u.id_user
-            WHERE u.first_name = ? 
-                AND u.phone = ?`, [first_name, phone]);
+            WHERE u.first_name = ?
+              AND u.phone = ?
+            LIMIT 1
+        `, [first_name, phone]);
 
-        if(rows.length === 0) {
-            return res.status(404).json({
-                error: 'המשתמש לא נמצא במערכת'
+        if (rows.length === 0) {
+            return res.status(401).json({
+                error: 'פרטי ההתחברות אינם נכונים'
             });
         }
 
         const participant = rows[0];
 
+        const accessToken = jwt.sign(
+            {
+                id_user: participant.id_user,
+                id_fleet: participant.id_fleet,
+                role: 'participant'
+            },
+            process.env.PARTICIPANT_ACCESS_SECRET_TOKEN,
+            {
+                expiresIn: '7d'
+            }
+        );
+
         res.json({
-            id_user: participant.id_user,
-            id_fleet: participant.id_fleet,
-            first_name: participant.first_name,
-            last_name: participant.last_name,
-            has_defi: participant.has_defi,
-            has_lora: participant.has_lora
+            accessToken,
+            participant: {
+                id_user: participant.id_user,
+                id_fleet: participant.id_fleet,
+                first_name: participant.first_name,
+                last_name: participant.last_name,
+                phone: participant.phone,
+                has_defi: participant.has_defi,
+                has_lora: participant.has_lora
+            }
         });
-    }
-    catch(error) {
-        console.error('Participant login failed', error);
+
+    } catch (error) {
+        console.error(
+            'Participant login failed',
+            error
+        );
 
         res.status(500).json({
-            error:'Failed to identify participant'
-        })
+            error: 'Failed to identify participant'
+        });
     }
-
 });
 
-app.post('/api/fleet/:id/heartbeat', async (res, req) => {
+app.get('/api/participant/me', authParticipant, async (req, res) => {
+    try {
+        const fleetId = req.participant.id_fleet;
+
+        const [rows] = await db.query(`
+            SELECT 
+                u.id_user,
+                u.first_name,
+                u.last_name,
+                u.phone,
+                
+                f.id_fleet,
+                f.has_def,
+                f.has_lora,
+                f.dev_EUI,
+                f.med_training,
+                f.lora_battery,
+                f.is_working_defi,
+                
+                l.latitude,
+                l.longitude,
+                l.time_of_transmit
+            FROM fleet f
+            JOIN users u
+                ON u.id_user = f.id_user
+            LEFT JOIN locations l
+                ON l.id_location = ( 
+                    SELECT l2.id_location
+                    FROM locations l2
+                    WHERE l2.id_fleet = f.id_fleet
+                    ORDER BY l2.time_of_transmit DESC,
+                    l2.id_location DESC
+
+                    LIMIT 1
+                )
+                WHERE  f.id_fleet = ?
+                `, [fleetId]);
+            
+            if(rows.length === 0) {
+                return res.status(404).json({
+                    error:'Participant not found'
+                });
+            }
+
+
+            res.json(rows[0]);
+
+
+    } // try block
+    catch (error) {
+        console.error('Failed to load participant:', error);
+        res.status(500).json({
+            error:'Failed to load participant'
+        });
+    }
+});
+
+app.post('/api/fleet/:id/heartbeat', async (req, res) => {
     const connection = await db.getConnection();
 
     try {
         const fleetId = Number(req.params.id);
         const { battery, latitude, longitude } = req.body;
+
+        const settings = await getSystemSettings();
+
+        const lowBatteryThreshold = settings.lowBatteryThreshold;
 
         if(!fleetId) {
             return res.status(400).json({
@@ -986,7 +1107,7 @@ app.post('/api/fleet/:id/heartbeat', async (res, req) => {
         const [fleetRows] = await connection.query(`
             SELECT 
                 id_fleet,
-                has_lora,
+                has_lora
             FROM fleet
             WHERE id_fleet = ?`, [fleetId]);
 
@@ -1014,21 +1135,24 @@ app.post('/api/fleet/:id/heartbeat', async (res, req) => {
 
         const [locationResult] = await connection.query(`
             INSERT INTO locations
-            id_fleet, 
+            (id_fleet, 
             latitude,
             longitude,
             time_of_transmit)
-            VALUES(?, ?, ?, NOW())`, [fleetId, Number(latitude, longitude)]);
+            VALUES(?, ?, ?, NOW())`, [fleetId, Number(latitude), Number(longitude)]);
 
         await connection.commit();
+
+        const needsMaintenance = Number(battery) <= lowBatteryThreshold;
 
         res.status(200).json({
             message:'LoRa heartbeat received',
             id_fleet: fleetId,
             battery: Number(battery),
-            latitude: Number(battery),
+            latitude: Number(latitude),
             longitude: Number(longitude),
-            id_location: locationResult.insertId
+            id_location: locationResult.insertId,
+            needsMaintenance
         });
 
     }

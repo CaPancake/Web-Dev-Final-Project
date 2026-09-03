@@ -1,733 +1,1355 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { useParams } from 'next/navigation';
+
 import Link from 'next/link';
 
-import { BatteryFull, BatteryMedium, BatteryLow, CircleCheckBig, CircleX,
-  Radio, HeartPulse, MapPin, Clock3 } from 'lucide-react';
+import { BatteryFull, BatteryMedium, BatteryLow, CircleCheckBig,
+    CircleX, Radio, HeartPulse, MapPin,
+    UserRound, Phone, GraduationCap, Smartphone,
+    Pencil, LogOut, ExternalLink
+} from 'lucide-react';
+
+// TYPES 
 
 type DeviceInfo = {
-  id_fleet: number;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
+    id_fleet: number;
 
-  has_defi: number;
-  has_lora: number;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
 
-  dev_EUI: string | null;
-  med_training?: string | null;
+    has_defi: number;
+    has_lora: number;
 
-  lora_battery: number | null;
-  is_working_defi: number;
+    dev_EUI: string | null;
+    med_training?: string | null;
 
-  latitude?: number | null;
-  longitude?: number | null;
-  time_of_transmit?: string | null;
+    lora_battery: number | null;
+    is_working_defi: number;
+
+    latitude?: number | null;
+    longitude?: number | null;
+    time_of_transmit?: string | null;
+};
+
+
+const medicalTrainingLabels:
+    Record<string, string> = {
+
+    'First Aid': 'עזרה ראשונה',
+    Medic: 'חובש/ת',
+    Paramedic: 'פרמדיק/ית',
+    Doctor: 'רופא/ה',
+    NONE: 'ללא הכשרה',
+    None: 'ללא הכשרה'
 };
 
 
 export default function MyDevicePage() {
 
-  const params = useParams<{ fleetId: string }>();
+    const params = useParams<{ fleetId: string }>();
 
-  const fleetId = Number(params.fleetId);
+    const fleetId = Number(params.fleetId);
 
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
 
-  const [loading, setLoading] =useState(true);
+    const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
 
-  const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
 
-  const [testingConnection, setTestingConnection] = useState(false);
+    const [error, setError] = useState('');
 
-  const[connectionMessage, setConnectionMessage] = useState('');
+    /* Load participant + equipment information. */
+    useEffect(() => {
 
-  useEffect(() => {
-
-    async function loadDeviceInfo() {
-
-      try {
-
-        const response = await fetch(
-          `http://localhost:3001/api/fleet/${fleetId}/device-info`);
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error( data.error || 'Failed to load device information');
+        if (!fleetId) {
+            setError('מזהה משתמש אינו תקין');
+            setLoading(false);
+            return;
         }
 
-        setDeviceInfo(data);
 
-      } catch (error) {
+        async function loadDeviceInfo() {
+            try {
 
-        console.error('Failed to load device:',error);
+                const token = localStorage.getItem('participantAccessToken');
 
-        if (error instanceof Error) {
-          setError(error.message);
-        } else {
-          setError('אירעה שגיאה בטעינת המכשיר');
+                if(!token) {
+                    window.location.href =  '/login';
+                    return;
+                }
+
+                const response = await fetch(
+                `http://localhost:3001/api/fleet/${fleetId}/device-info`, 
+                {
+                    headers: { Authorization: 
+                        `Bearer ${token}`
+                    }
+
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+
+                    throw new Error(data.error ||'Failed to load participant information');
+                }
+
+                setDeviceInfo(data);
+
+            } catch (error) {
+
+                console.error('Failed to load participant:',error);
+
+                if (error instanceof Error) {
+                    setError(error.message);
+                } else {
+                    setError('אירעה שגיאה בטעינת החשבון');
+                }
+            } finally {
+                setLoading(false);
+            }
         }
+        loadDeviceInfo();
 
-      } finally {
-        setLoading(false);
-      }
-
-    }
-
-
-    if (fleetId) {
-      loadDeviceInfo();
-    } 
     }, [fleetId]);
 
-  if (loading) {
+    useEffect(() => {
 
-    return (
-      <main dir="rtl" className=" min-h-screen bg-slate-100 flex
-          items-center justify-center">
-        <p className="text-slate-500">
-          טוען את פרטי המכשיר...
-        </p>
-      </main>
-    );
+    async function loadParticipant() {
 
-  }
-
-
-  if (error || !deviceInfo) {
-
-    return (
-    <main dir="rtl" className=" min-h-screen bg-slate-100 flex
-          items-center justify-center px-6">
-        <div
-          className=" bg-white border border-red-200 rounded-2xl
-            p-8 max-w-lg text-center">
-
-          <CircleX className="mx-auto mb-4 text-red-600" size={50} />
-
-          <h1 className="text-2xl font-bold mb-2">
-            לא ניתן לטעון את המכשיר
-          </h1>
-
-          <p className="text-slate-600 mb-6">
-            {error}
-          </p>
-
-          <Link href="/login"
-            className=" text-red-600 font-bold hover:text-red-700">
-            חזרה לכניסה
-          </Link>
-
-        </div>
-      </main>
-    );
-
-  }
-
-  const hasRecentTransmission =
-    deviceInfo.time_of_transmit !== null &&
-    deviceInfo.time_of_transmit !== undefined;
-
-  const hasGps =
-    deviceInfo.latitude !== null &&
-    deviceInfo.latitude !== undefined &&
-    deviceInfo.longitude !== null &&
-    deviceInfo.longitude !== undefined;
-
-    async function loadDeviceInfo() {
         try {
-            const response = await fetch(`
-                http://localhost:3001/api/fleet/${fleetId}/device-info`);
+
+            const token =localStorage.getItem('participantAccessToken');
+
+            if (!token) {
+
+                window.location.href ='/login';
+                return;
+            }
+
+            const response =await fetch('http://localhost:3001/api/participant/me',
+            {
+                headers: {
+                            Authorization:
+                            `Bearer ${token}`
+                }
+            }
+            );
+
+            if (response.status === 401) {
+
+                localStorage.removeItem('participantAccessToken');
+                window.location.href ='/login';
+                return;
+            }
+
 
             const data = await response.json();
 
-            if(!response.ok) {
-                throw new Error(data.error ||
-                    'Failed to load device information'
-                );
-            }
+            if (!response.ok) {
+
+                throw new Error(data.error ||'Failed to load participant');}
 
             setDeviceInfo(data);
-        }
-        catch(error) {
 
-            console.error('Failed to load device:', error);
+        } catch (error) {
 
-            if(error instanceof Error){
+            console.error('Failed to load participant:',error);
+
+            if (error instanceof Error) {
                 setError(error.message);
-            }
-            else {
-                setError(`אירעה שגיאה בטעינת מכשיר`);
-            }
-        }
-    }
-    
-    useEffect(() => {
-        if(!fleetId) {
-            return;
-        }
 
-        loadDeviceInfo().finally(() => setLoading(false));
-    }, [fleetId]);
-
-    async function testLoRaConnection() {
-
-        if(!deviceInfo?.has_lora) {
-            return;
-        }
-
-        setTestingConnection(true);
-        setConnectionMessage('');
-
-        try {
-            const latitude = deviceInfo.latitude ?? 32.0853;
-            const longitude = deviceInfo.longitude ?? 34.7818;
-            const battery = deviceInfo.lora_battery ?? 85;
-
-            const response = await fetch(`
-                http://localhost:3001/api/fleet/${fleetId}/heartbeat`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    battery, latitude, longitude
-                })
-            });
-
-            const data = await response.json();
-
-            if(!response.ok) {
-                throw new Error(data.error || 'LoRa connection test failed');
+            } else {
+                setError('אירעה שגיאה בטעינת החשבון');
             }
 
-            await loadDeviceInfo();
-
-            setConnectionMessage('✓ התקבל שידור LoRa בהצלחה')
-
+        } finally {
+            setLoading(false);
         }
-        catch(error) {
-            console.error('LoRa connection test failed', error);
-        
+    }
+    loadParticipant();
+}, []);
 
-        if (error instanceof Error) {
-            setConnectionMessage(`בדיקת החיבור נכשלה: ${error.message}`);
-        }
-        else {
-            setConnectionMessage('בדיקת החיבור נכשלה');
-        }   
-    }
-    finally {
-            setTestingConnection(false);
-    }
+function handleLogout() {
+    localStorage.removeItem('participantAccessToken');
+    window.location.href = '/login';
 }
 
-  return (
+    if (loading) {
 
-    <main dir="rtl" className="min-h-screen bg-slate-100 py-12 px-6">
+        return (
 
-      <div className="max-w-6xl mx-auto">
+            <main dir="rtl" className=" min-h-screen
+             bg-slate-100 flex
+            items-center justify-center">
 
-        {/* HEADER*/}
+                <p className="text-slate-500">
+                    טוען את החשבון...
+                </p>
 
-        <div
-          className=" flex flex-col md:flex-row
-            md:items-center md:justify-between gap-4 mb-10">
+            </main>
+        );}
 
-          <div>
+    if (error || !deviceInfo) {
 
-            <p
-              className=" text-red-600 font-semibold mb-2">
-              ניהול המכשיר
-            </p>
+        return (
+            <main dir="rtl" className="
+            min-h-screen bg-slate-100 flex
+            items-center justify-center
+            px-6">
 
-            <h1
-              className=" text-3xl md:text-4xl font-bold">
-              שלום,
-              {deviceInfo.first_name
-                ? ` ${deviceInfo.first_name}`
-                : ''}
-            </h1>
+            <div className="bg-white border border-red-200
+            rounded-2xl p-8 max-w-lg text-center">
 
-            <p className="text-slate-500 mt-2">
-              מזהה מתנדב: #{deviceInfo.id_fleet}
-            </p>
+                <CircleX className="mx-auto mb-4 text-red-600"
+                        size={50}/>
 
-          </div>
+                <h1 className="text-2xl font-bold mb-2">
+                        לא ניתן לטעון את החשבון
+                    </h1>
+
+                    <p className=" text-slate-600 mb-6">
+                        {
+                            error ||
+                            'המשתמש לא נמצא'
+                        }
+                    </p>
+
+                    <Link
+                        href="/login"
+                        className="
+                            text-red-600
+                            font-bold
+                            hover:text-red-700
+                        "
+                    >
+                        חזרה לכניסה
+                    </Link>
+
+                </div>
+
+            </main>
+        );
+    }
 
 
-          <Link href="/"
-            className=" border border-slate-300 bg-white hover:bg-slate-50
-              rounded-lg px-4 py-2 font-medium self-start">
-            חזרה לדף הבית
-          </Link>
+    const fullName =
+        [
+            deviceInfo.first_name,
+            deviceInfo.last_name
+        ]
+            .filter(Boolean)
+            .join(' ');
 
-        </div>
+
+    const medicalTraining =
+        deviceInfo.med_training
+            ? (
+                medicalTrainingLabels[
+                    deviceInfo.med_training
+                ] ??
+                deviceInfo.med_training
+            )
+            : 'לא צוינה';
 
 
+    return (
 
-        {/* SUMMARY CARDS */}
-
-        <div
-          className=" grid md:grid-cols-2 gap-6 mb-8">
-
-          {/* DEFIBRILLATOR */}
-
-          <div
-            className=" bg-white border border-slate-200 rounded-2xl p-7 shadow-sm">
+        <main
+            dir="rtl"
+            className="
+                min-h-screen
+                bg-slate-100
+                py-12
+                px-6
+            "
+        >
 
             <div
-              className=" flex items-center justify-between mb-5" >
+                className="
+                    max-w-6xl
+                    mx-auto
+                "
+            >
 
-              <div className=" flex items-center gap-3">
+                {/* HEADER */}
 
-                <HeartPulse size={34} className="text-red-600"/>
+                <header
+                    className="
+                        flex
+                        flex-col
+                        md:flex-row
+                        md:items-center
+                        md:justify-between
+                        gap-5
+                        mb-10
+                    "
+                >
 
-                <h2 className="text-2xl font-bold">
-                  דפיברילטור
-                </h2>
+                    <div>
 
-              </div>
+                        <p
+                            className="
+                                text-red-600
+                                font-semibold
+                                mb-2
+                            "
+                        >
+                            האזור האישי
+                        </p>
 
-              {deviceInfo.has_defi ? (
 
-                <span
-                  className=" bg-green-100 text-green-800 px-3
-                    py-1 rounded-full text-sm font-bold">
-                  רשום
-                </span>
+                        <h1
+                            className="
+                                text-3xl
+                                md:text-4xl
+                                font-bold
+                            "
+                        >
+                            שלום
+                            {
+                                deviceInfo.first_name
+                                    ? `, ${deviceInfo.first_name}`
+                                    : ''
+                            }
+                        </h1>
 
-              ) : (
 
-                <span
-                  className=" bg-slate-100 text-slate-500 px-3
-                    py-1 rounded-full text-sm font-bold">
-                  לא קיים
-                </span>
+                        <p
+                            className="
+                                text-slate-500
+                                mt-2
+                            "
+                        >
+                            כאן ניתן לצפות בפרטים
+                            ובציוד המשויך לחשבון.
+                        </p>
 
-              )}
+                    </div>
 
-            </div>
 
-            {deviceInfo.has_defi ? (
+                    <div
+                        className="flex flex-wrap gap-3">
 
-              <div>
+                        <Link
+                            href="/"
+                            className="
+                                border
+                                border-slate-300
+                                bg-white
+                                hover:bg-slate-50
+                                rounded-lg
+                                px-4
+                                py-2
+                                font-medium
+                            "
+                        >
+                            דף הבית
+                        </Link>
+
+                    
+                        <button onClick={handleLogout} 
+                        className="flex items-center gap-2 
+                        bg-slate-900 hover:bg-slate-800
+                        text-white rounded-lg px-4 py-2 fond-medium">
+
+                            <LogOut size={18}/>
+
+                            יציאה
+
+                        </button>
+
+                    </div>
+
+                </header>
+
+
+
+                {/* PERSONAL DETAILS */}
+
+                <section
+                    className="
+                        bg-white
+                        border
+                        border-slate-200
+                        rounded-2xl
+                        shadow-sm
+                        p-7
+                        mb-8
+                    "
+                >
+
+                    <div
+                        className="
+                            flex
+                            items-center
+                            justify-between
+                            gap-4
+                            mb-6
+                        "
+                    >
+
+                        <div
+                            className="
+                                flex
+                                items-center
+                                gap-3
+                            "
+                        >
+
+                            <UserRound
+                                size={30}
+                                className="text-red-600"
+                            />
+
+
+                            <h2
+                                className="
+                                    text-2xl
+                                    font-bold
+                                "
+                            >
+                                פרטים אישיים
+                            </h2>
+
+                        </div>
+
+
+                        <button
+                            disabled
+                            title="יתווסף לאחר חיבור אימות המשתמש"
+                            className="
+                                flex
+                                items-center
+                                gap-2
+                                border
+                                border-slate-300
+                                rounded-lg
+                                px-4
+                                py-2
+                                text-slate-400
+                                cursor-not-allowed
+                            "
+                        >
+
+                            <Pencil size={17}/>
+
+                            עריכת פרטים
+
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        className="
+                            grid
+                            md:grid-cols-3
+                            gap-4
+                        "
+                    >
+
+                        <InfoCard
+                            icon={
+                                <UserRound
+                                    size={21}
+                                />
+                            }
+                            label="שם"
+                            value={
+                                fullName ||
+                                'לא צוין'
+                            }
+                        />
+
+
+                        <InfoCard
+                            icon={
+                                <Phone
+                                    size={21}
+                                />
+                            }
+                            label="טלפון"
+                            value={
+                                deviceInfo.phone ||
+                                'לא צוין'
+                            }
+                        />
+
+
+                        <InfoCard
+                            icon={
+                                <GraduationCap
+                                    size={21}
+                                />
+                            }
+                            label="הכשרה רפואית"
+                            value={
+                                medicalTraining
+                            }
+                        />
+
+                    </div>
+
+                </section>
+
+
+
+                {/* EQUIPMENT */}
+
                 <div
-                  className=" flex items-center justify-between
-                    border-t border-slate-100 py-3">
+                    className="
+                        grid
+                        lg:grid-cols-2
+                        gap-6
+                        mb-8
+                    "
+                >
 
-                  <span className="text-slate-600">
-                    מצב המכשיר
-                  </span>
+                    {/* DEFIBRILLATOR */}
 
-                  <span
-                    className={
-                      deviceInfo.is_working_defi
-                        ? 'text-green-700 font-bold'
-                        : 'text-red-700 font-bold'
-                    }>
-                    {deviceInfo.is_working_defi
-                      ? 'תקין'
-                      : 'לא זמין'}
-                  </span>
+                    <section
+                        className="
+                            bg-white
+                            border
+                            border-slate-200
+                            rounded-2xl
+                            shadow-sm
+                            p-7
+                        "
+                    >
+
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                mb-6
+                            "
+                        >
+
+                            <div
+                                className="
+                                    flex
+                                    items-center
+                                    gap-3
+                                "
+                            >
+
+                                <HeartPulse
+                                    size={34}
+                                    className="text-red-600"
+                                />
+
+                                <h2
+                                    className="
+                                        text-2xl
+                                        font-bold
+                                    "
+                                >
+                                    דפיברילטור נייד
+                                </h2>
+
+                            </div>
+
+
+                            <StatusBadge
+                                active={
+                                    Boolean(
+                                        deviceInfo.has_defi
+                                    )
+                                }
+                                activeText="רשום"
+                                inactiveText="לא משויך"
+                            />
+
+                        </div>
+
+
+                        {deviceInfo.has_defi ? (
+
+                            <>
+                                <DetailRow
+                                    label="מצב הדפיברילטור"
+                                    value={
+                                        deviceInfo.is_working_defi
+                                            ? 'תקין'
+                                            : 'לא זמין'
+                                    }
+                                    success={
+                                        Boolean(
+                                            deviceInfo.is_working_defi
+                                        )
+                                    }
+                                />
+
+
+                                <div
+                                    className="
+                                        mt-6
+                                        flex
+                                        flex-wrap
+                                        gap-3
+                                    "
+                                >
+
+                                    <button
+                                        disabled
+                                        title="יתווסף לאחר חיבור JWT למשתמש"
+                                        className="
+                                            bg-slate-100
+                                            text-slate-400
+                                            px-4
+                                            py-2
+                                            rounded-lg
+                                            font-medium
+                                            cursor-not-allowed
+                                        "
+                                    >
+                                        {
+                                            deviceInfo.is_working_defi
+                                                ? 'דיווח על תקלה'
+                                                : 'סימון כתקין'
+                                        }
+                                    </button>
+
+                                </div>
+                            </>
+
+                        ) : (
+
+                            <div>
+
+                                <p
+                                    className="
+                                        text-slate-500
+                                        mb-5
+                                    "
+                                >
+                                    לחשבון זה לא משויך
+                                    דפיברילטור נייד.
+                                </p>
+
+
+                                <button
+                                    disabled
+                                    className="
+                                        bg-slate-100
+                                        text-slate-400
+                                        px-4
+                                        py-2
+                                        rounded-lg
+                                        cursor-not-allowed
+                                    "
+                                >
+                                    הוספת דפיברילטור
+                                </button>
+
+                            </div>
+                        )}
+
+                    </section>
+
+
+
+                    {/* LORA */}
+
+                    <section
+                        className="
+                            bg-slate-950
+                            text-white
+                            rounded-2xl
+                            shadow-sm
+                            p-7
+                        "
+                    >
+
+                        <div
+                            className="
+                                flex
+                                items-center
+                                justify-between
+                                mb-6
+                            "
+                        >
+
+                            <div
+                                className="
+                                    flex
+                                    items-center
+                                    gap-3
+                                "
+                            >
+
+                                <Radio
+                                    size={34}
+                                    className="text-red-400"
+                                />
+
+                                <h2
+                                    className="
+                                        text-2xl
+                                        font-bold
+                                    "
+                                >
+                                    מכשיר LoRa
+                                </h2>
+
+                            </div>
+
+
+                            <StatusBadge
+                                active={
+                                    Boolean(
+                                        deviceInfo.has_lora
+                                    )
+                                }
+                                activeText="רשום"
+                                inactiveText="לא משויך"
+                                dark
+                            />
+
+                        </div>
+
+
+                        {deviceInfo.has_lora ? (
+
+                            <div>
+
+                                <DarkDetailRow
+                                    label="DevEUI"
+                                    value={
+                                        deviceInfo.dev_EUI ||
+                                        '-'
+                                    }
+                                    mono
+                                />
+
+
+                                <DarkDetailRow
+                                    label="סוללה"
+                                    valueComponent={
+                                        <BatteryStatus
+                                            battery={
+                                                deviceInfo.lora_battery
+                                            }
+                                        />
+                                    }
+                                />
+
+
+                                <DarkDetailRow
+                                    label="שידור אחרון"
+                                    value={
+                                        deviceInfo.time_of_transmit ||
+                                        'טרם התקבל'
+                                    }
+                                />
+
+
+                                <div
+                                    className="
+                                        mt-6
+                                        flex
+                                        flex-wrap
+                                        gap-3
+                                    "
+                                >
+
+                                    <button
+                                        disabled
+                                        title="יתווסף לאחר חיבור JWT למשתמש"
+                                        className="
+                                            bg-slate-800
+                                            text-slate-500
+                                            px-4
+                                            py-2
+                                            rounded-lg
+                                            cursor-not-allowed
+                                        "
+                                    >
+                                        ניהול מכשיר LoRa
+                                    </button>
+
+
+                                    <Link
+                                        href={
+                                            `/device/lora/${fleetId}`
+                                        }
+                                        className="
+                                            flex
+                                            items-center
+                                            gap-2
+                                            border
+                                            border-slate-600
+                                            hover:bg-slate-800
+                                            px-4
+                                            py-2
+                                            rounded-lg
+                                            font-medium
+                                        "
+                                    >
+
+                                        <ExternalLink
+                                            size={17}
+                                        />
+
+                                        פתיחת סימולטור LoRa
+
+                                    </Link>
+
+                                </div>
+
+                            </div>
+
+                        ) : (
+
+                            <div>
+
+                                <p
+                                    className="
+                                        text-slate-400
+                                        mb-5
+                                    "
+                                >
+                                    לחשבון זה לא משויך
+                                    מכשיר LoRa.
+                                </p>
+
+
+                                <button
+                                    disabled
+                                    className="
+                                        bg-slate-800
+                                        text-slate-500
+                                        px-4
+                                        py-2
+                                        rounded-lg
+                                        cursor-not-allowed
+                                    "
+                                >
+                                    הוספת מכשיר LoRa
+                                </button>
+
+                            </div>
+                        )}
+
+                    </section>
 
                 </div>
 
 
-                {deviceInfo.med_training && (
 
-                  <div
-                    className="flex items-center justify-between
-                      border-t border-slate-100 py-3">
+                {/* LAST LOCATION */}
 
-                    <span className="text-slate-600">
-                      הכשרה רפואית
-                    </span>
+                {deviceInfo.has_lora && (
 
-                    <span className="font-medium">
-                      {deviceInfo.med_training}
-                    </span>
+                    <section
+                        className="
+                            bg-white
+                            border
+                            border-slate-200
+                            rounded-2xl
+                            p-7
+                            mb-8
+                        "
+                    >
 
-                  </div>
+                        <div
+                            className="
+                                flex
+                                items-center
+                                gap-3
+                                mb-5
+                            "
+                        >
 
+                            <MapPin
+                                className="text-red-600"
+                                size={30}
+                            />
+
+                            <h2
+                                className="
+                                    text-2xl
+                                    font-bold
+                                "
+                            >
+                                נתוני מכשיר אחרונים
+                            </h2>
+
+                        </div>
+
+
+                        <div
+                            className="
+                                grid
+                                md:grid-cols-3
+                                gap-4
+                            "
+                        >
+
+                            <InfoCard
+                                label="Latitude"
+                                value={
+                                    deviceInfo.latitude !== null &&
+                                    deviceInfo.latitude !== undefined
+                                        ? String(
+                                            deviceInfo.latitude
+                                        )
+                                        : 'לא התקבל'
+                                }
+                            />
+
+
+                            <InfoCard
+                                label="Longitude"
+                                value={
+                                    deviceInfo.longitude !== null &&
+                                    deviceInfo.longitude !== undefined
+                                        ? String(
+                                            deviceInfo.longitude
+                                        )
+                                        : 'לא התקבל'
+                                }
+                            />
+
+
+                            <InfoCard
+                                label="שידור אחרון"
+                                value={
+                                    deviceInfo.time_of_transmit ||
+                                    'טרם התקבל'
+                                }
+                            />
+
+                        </div>
+
+                    </section>
                 )}
 
-              </div>
-
-            ) : (
-
-              <p className="text-slate-500">
-                לחשבון זה לא משויך דפיברילטור.
-              </p>
-
-            )}
-
-          </div>
 
 
+                {/* SIMULATORS */}
 
-          {/* LORA */}
+                <section
+                    className="
+                        bg-white
+                        border
+                        border-slate-200
+                        rounded-2xl
+                        p-7
+                    "
+                >
 
-          <div
-            className=" bg-slate-950 text-white
-              rounded-2xl p-7 shadow-sm">
+                    <div
+                        className="
+                            flex
+                            items-center
+                            gap-3
+                            mb-3
+                        "
+                    >
 
-            <div
-              className=" flex items-center
-                justify-between mb-5">
-
-              <div className=" flex items-center gap-3">
-
-                <Radio size={34} className="text-red-400"/>
-
-                <h2 className="text-2xl font-bold">
-                  LoRa
-                </h2>
-
-              </div>
-
-              {deviceInfo.has_lora ? (
-
-                <span
-                  className=" bg-green-900 text-green-300 px-3
-                    py-1 rounded-full text-sm font-bold">
-                  רשום
-                </span>
-              ) : (
-
-                <span
-                  className=" bg-slate-800 text-slate-400 px-3
-                    py-1 rounded-full text-sm font-bold " >
-                  לא קיים
-                </span>
-
-              )}
-
-            </div>
-
-            {deviceInfo.has_lora ? (
-
-              <div className="space-y-1">
-
-                <div
-                  className=" flex items-center justify-between border-t
-                    border-slate-800 py-3">
-
-                  <span className="text-slate-400">
-                    DevEUI
-                  </span>
-
-                  <span dir="ltr"
-                    className=" font-mono text-sm">
-                    {deviceInfo.dev_EUI ?? '-'}
-                  </span>
-
-                </div>
-
-                <div
-                  className="flex items-center justify-between border-t
-                    border-slate-800 py-3">
-
-                  <span className="text-slate-400">
-                    סוללה
-                  </span>
-
-                  <BatteryStatus battery={ deviceInfo.lora_battery}/>
-
-                </div>
-
-                <div
-                  className=" flex items-center justify-between border-t
-                    border-slate-800 py-3">
-
-                  <span className="text-slate-400">
-                    שידור אחרון
-                  </span>
-
-                  <span>
-                    {deviceInfo.time_of_transmit
-                      ?? 'טרם התקבל'}
-                  </span>
-
-                </div>
-
-              </div>
-
-            ) : (
-
-              <p className="text-slate-400">
-                לחשבון זה לא משויך מכשיר LoRa.
-              </p>
-
-            )}
-
-            {deviceInfo.has_lora && (
-                <div className="mt-6">
-
-                 <button
-                 onClick={testLoRaConnection}
-                    disabled={testingConnection}
-                className="
-                    bg-red-600
-                   hover:bg-red-700
-                 disabled:bg-slate-400
-                  text-white
-                   px-5 py-3
-                   rounded-lg
-                  font-bold">
-            {testingConnection
-              ? 'בודק חיבור...'
-              : 'בדיקת חיבור LoRa'}
-                 </button>
+                        <Smartphone
+                            size={30}
+                            className="text-red-600"
+                        />
 
 
-             {connectionMessage && (
-          <p className="mt-3 text-sm font-medium">
-               {connectionMessage}
-              </p>
-              )}
+                        <h2
+                            className="
+                                text-2xl
+                                font-bold
+                            "
+                        >
+                            סימולטורים
+                        </h2>
 
-             </div>
-            )}
-
-          </div>
-
-        </div>
+                    </div>
 
 
+                    <p
+                        className="
+                            text-slate-600
+                            mb-6
+                        "
+                    >
+                        לצורך הדגמת המערכת ניתן
+                        לפתוח את ממשק האפליקציה
+                        והמכשיר המשויכים למשתמש.
+                    </p>
 
-        {/* LOCATION  */}
 
-        {deviceInfo.has_lora && (
+                    <div
+                        className="
+                            flex
+                            flex-wrap
+                            gap-3
+                        "
+                    >
 
-          <div className=" bg-white border border-slate-200 rounded-2xl
-              p-7 mb-8" >
+                        <Link
+                            href={
+                                `/device/${fleetId}`
+                            }
+                            className="
+                                bg-red-600
+                                hover:bg-red-700
+                                text-white
+                                rounded-lg
+                                px-5
+                                py-3
+                                font-bold
+                            "
+                        >
+                            פתיחת אפליקציית המתנדב
+                        </Link>
 
-            <div
-             className=" flex items-center gap-3 mb-5">
 
-              <MapPin className="text-red-600" size={30}/>
+                        {deviceInfo.has_lora && (
 
-              <h2 className="text-2xl font-bold">
-                מיקום אחרון
-              </h2>
+                            <Link
+                                href={
+                                    `/device/lora/${fleetId}`
+                                }
+                                className="
+                                    bg-slate-900
+                                    hover:bg-slate-800
+                                    text-white
+                                    rounded-lg
+                                    px-5
+                                    py-3
+                                    font-bold
+                                "
+                            >
+                                פתיחת מכשיר LoRa
+                            </Link>
+                        )}
+
+                    </div>
+
+                </section>
 
             </div>
 
-            {hasGps ? (
+        </main>
+    );
+}
 
-              <div
-                className=" grid md:grid-cols-2 gap-4">
 
-                <div
-                  className=" bg-slate-50 rounded-lg p-4">
-                  <span className="text-slate-500">
-                    Latitude
-                  </span>
 
-                  <div
-                    dir="ltr"
-                    className="font-mono mt-1"
-                  >
-                    {deviceInfo.latitude}
-                  </div>
-                </div>
+/* -------------------------------- */
+/* UI HELPERS                       */
+/* -------------------------------- */
 
-                <div
-                  className=" bg-slate-50 rounded-lg p-4">
-                  <span className="text-slate-500">
-                    Longitude
-                  </span>
 
-                  <div
-                    dir="ltr" className="font-mono mt-1">
-                    {deviceInfo.longitude}
-                  </div>
-                </div>
+function InfoCard({
+    icon,
+    label,
+    value
+}: {
+    icon?: React.ReactNode;
+    label: string;
+    value: string;
+}) {
 
-              </div>
-
-            ) : (
-
-              <p className="text-slate-500">
-                טרם התקבל מיקום מהמכשיר.
-              </p>
-
-            )}
-
-          </div>
-
-        )}
-
-        {/*  SETUP CHECKLIST  */}
+    return (
 
         <div
-          className=" bg-white border border-slate-200
-            rounded-2xl p-7">
+            className="
+                bg-slate-50
+                rounded-xl
+                p-4
+            "
+        >
 
-          <h2 className="text-2xl font-bold mb-2">
-            מצב הגדרת המכשיר
-          </h2>
+            <div
+                className="
+                    flex
+                    items-center
+                    gap-2
+                    text-slate-500
+                    text-sm
+                    mb-2
+                "
+            >
+                {icon}
 
-          <p
-            className=" text-slate-600 mb-6">
-            כאן ניתן לוודא שהמכשיר נרשם
-            ומעביר מידע למערכת בצורה תקינה.
-          </p>
-
-
-          <div className="space-y-4">
-
-            <SetupItem
-              success={true}
-              title="המשתמש רשום במערכת"
-            />
+                {label}
+            </div>
 
 
-            {deviceInfo.has_lora ? (
-              <>
-                <SetupItem
-                  success={
-                    deviceInfo.dev_EUI !== null
-                  }
-                  title="מזהה DevEUI מוגדר"
-                />
-
-                <SetupItem
-                  success={
-                    hasRecentTransmission
-                  }
-                  title="התקבל שידור מהמכשיר"
-                />
-
-                <SetupItem
-                  success={hasGps}
-                  title="התקבל מיקום GPS"
-                />
-
-                <SetupItem
-                  success={
-                    deviceInfo.lora_battery !== null
-                  }
-                  title="התקבל מצב סוללה"
-                />
-              </>
-            ) : (
-              <SetupItem
-                success={true}
-                title="לא נדרש חיבור LoRa"
-              />
-            )}
-
-          </div>
+            <div className="font-medium">
+                {value}
+            </div>
 
         </div>
-
-
-      </div>
-
-    </main>
-
-  );
-
+    );
 }
 
 
 
-/*  Battery display */
+function StatusBadge({
+    active,
+    activeText,
+    inactiveText,
+    dark = false
+}: {
+    active: boolean;
+    activeText: string;
+    inactiveText: string;
+    dark?: boolean;
+}) {
+
+    return (
+
+        <span
+            className={
+                active
+
+                    ? (
+                        dark
+                            ? `
+                                bg-green-900
+                                text-green-300
+                                px-3
+                                py-1
+                                rounded-full
+                                text-sm
+                                font-bold
+                              `
+                            : `
+                                bg-green-100
+                                text-green-800
+                                px-3
+                                py-1
+                                rounded-full
+                                text-sm
+                                font-bold
+                              `
+                    )
+
+                    : (
+                        dark
+                            ? `
+                                bg-slate-800
+                                text-slate-400
+                                px-3
+                                py-1
+                                rounded-full
+                                text-sm
+                                font-bold
+                              `
+                            : `
+                                bg-slate-100
+                                text-slate-500
+                                px-3
+                                py-1
+                                rounded-full
+                                text-sm
+                                font-bold
+                              `
+                    )
+            }
+        >
+            {
+                active
+                    ? activeText
+                    : inactiveText
+            }
+        </span>
+    );
+}
+
+
+
+function DetailRow({
+    label,
+    value,
+    success
+}: {
+    label: string;
+    value: string;
+    success?: boolean;
+}) {
+
+    return (
+
+        <div
+            className="
+                flex
+                items-center
+                justify-between
+                border-t
+                border-slate-100
+                py-3
+            "
+        >
+
+            <span className="text-slate-600">
+                {label}
+            </span>
+
+
+            <span
+                className={
+                    success === undefined
+                        ? 'font-medium'
+                        : success
+                            ? 'font-bold text-green-700'
+                            : 'font-bold text-red-700'
+                }
+            >
+                {value}
+            </span>
+
+        </div>
+    );
+}
+
+
+
+function DarkDetailRow({
+    label,
+    value,
+    valueComponent,
+    mono = false
+}: {
+    label: string;
+    value?: string;
+    valueComponent?: React.ReactNode;
+    mono?: boolean;
+}) {
+
+    return (
+
+        <div
+            className="
+                flex
+                items-center
+                justify-between
+                gap-4
+                border-t
+                border-slate-800
+                py-3
+            "
+        >
+
+            <span className="text-slate-400">
+                {label}
+            </span>
+
+
+            {
+                valueComponent ?? (
+
+                    <span
+                        dir={
+                            mono
+                                ? 'ltr'
+                                : undefined
+                        }
+                        className={
+                            mono
+                                ? 'font-mono text-sm'
+                                : ''
+                        }
+                    >
+                        {value}
+                    </span>
+                )
+            }
+
+        </div>
+    );
+}
+
+
 
 function BatteryStatus({
-  battery
+    battery
 }: {
-  battery: number | null;
+    battery: number | null;
 }) {
 
-  if (battery === null) {
+    if (battery === null) {
+
+        return (
+            <span className="text-slate-400">
+                לא התקבל
+            </span>
+        );
+    }
+
+
+    if (battery <= 20) {
+
+        return (
+
+            <div
+                className="
+                    flex
+                    items-center
+                    gap-2
+                    text-red-400
+                    font-bold
+                "
+            >
+
+                <span>
+                    {battery}%
+                </span>
+
+                <BatteryLow size={22}/>
+
+            </div>
+        );
+    }
+
+
+    if (battery <= 60) {
+
+        return (
+
+            <div
+                className="
+                    flex
+                    items-center
+                    gap-2
+                "
+            >
+
+                <span>
+                    {battery}%
+                </span>
+
+                <BatteryMedium size={22}/>
+
+            </div>
+        );
+    }
+
 
     return (
-      <span className="text-slate-400">
-        לא התקבל
-      </span>
+
+        <div
+            className="
+                flex
+                items-center
+                gap-2
+            "
+        >
+
+            <span>
+                {battery}%
+            </span>
+
+            <BatteryFull size={22}/>
+
+        </div>
     );
-
-  }
-
-
-  if (battery <= 20) {
-
-    return (
-      <div
-        className=" flex items-center gap-2 text-red-400 font-bold">
-        <span>{battery}%</span>
-        <BatteryLow size={22} />
-      </div>
-    );
-
-  }
-
-  if (battery <= 60) {
-
-    return (
-      <div className=" flex items-center  gap-2">
-        <span>{battery}%</span>
-        <BatteryMedium size={22} />
-      </div>
-    );
-
-  }
-
-  return (
-    <div className=" flex items-center gap-2">
-      <span>{battery}%</span>
-      <BatteryFull size={22} />
-    </div>
-  );
-
-}
-
-
-/* Setup checklist item */
-
-function SetupItem({
-  success,
-  title
-}: {
-  success: boolean;
-  title: string;
-}) {
-
-  return (
-
-    <div
-      className=" flex items-center gap-3 bg-slate-50
-        rounded-lg px-4 py-3">
-
-      {success ? (
-
-        <CircleCheckBig className="text-green-600" size={22}/>
-      ) : (
-        <Clock3
-          className="text-amber-600"
-          size={22}
-        />
-      )}
-
-      <span
-        className={
-          success
-            ? 'font-medium'
-            : 'text-slate-600'
-        }
-      >
-        {title}
-      </span>
-
-    </div>
-
-  );
-
 }
