@@ -18,9 +18,10 @@ type EmergencyNotification = {
 
 type Props = {
     fleetId: number;
+    onResponseChanged?: () => void;
 };
 
-export default function IncomingAlerts({ fleetId }: Props ) {
+export default function IncomingAlerts({ fleetId, onResponseChanged }: Props ) {
     const [notifications, setNotifications] = 
     useState<EmergencyNotification[]>([]);
     const [loading, setLoading] = useState(true);
@@ -79,6 +80,7 @@ export default function IncomingAlerts({ fleetId }: Props ) {
                 throw new Error(errorData.error || 'Failed to respond to emergency');
             }
 
+            onResponseChanged?.();
             await loadNotifications();
         }
         catch (error) {

@@ -157,17 +157,31 @@ app.get('/api/fleet/latest-locations', async (req, res) => {
                 });
             }
 
+            // create emergency 
+
             const[result] = await db.query(`
                 INSERT INTO emergencies
                 (latitude, longitude, status)
                 VALUES(?, ?, 'OPEN') 
                 `, [latitude, longitude]);
 
+            // load dynamic settings
+
+            const settings = await getSystemSettings();
+
+            const radiusKm = Number(settings.candidateRadiusKm);
+            const emergencyId = result.insertId;
+
+            // notify + find candidates
+
+            const notificationResult = await notifyCandidates(emergencyId);
+
             res.status(201).json({
                 id_emergency: result.insertId,
                 latitude, 
                 longitude,
-                status:'OPEN'
+                status:'OPEN',
+                notified: notificationResult
             });
 
         } // try block
@@ -266,44 +280,21 @@ app.get('/api/emergencies/active', async (req, res) => {
 app.post('/api/emergencies/:id/notify', async (req, res) => {
     try{
         const emergencyId = Number(req.params.id);
-        const radiusKm = Number(req.body.radiusKm ?? 5);
-
-        const candidates = await findCandidates(
-            emergencyId,
-            radiusKm
-        );
-
-        for(const candidate of candidates) {
-            await db.query(`
-                INSERT INTO emergency_candidates (
-                id_emergency,
-                id_fleet,
-                distance_km,
-                notification_status,
-                response_status,
-                notified_at
-            )
-                VALUES(?, ?, ?, 'SENT', 'WAITING', NOW())
-            ON DUPLICATE KEY UPDATE
-                distance_km = VALUES(distance_km),
-                notification_status = 'SENT',
-                notified_at = NOW()
-                `, [
-                    emergencyId,
-                    candidate.id_fleet,
-                    candidate.distanceKm
-                ]);
+       
+        if(!Number.isInteger(emergencyId) || emergencyId <= 0) {
+            return res.status(400).json({
+                error:'Invalid emergency Id'
+            });
         }
 
-        res.json({
-            id_emergency: emergencyId,
-            notified_count: candidates.length,
-            candidates
-        });
+        const result = await notifyCandidates(emergencyId);
+
+        return res.json(result);
+
     } // try block
     catch(error) {
 
-        console.error(error);
+        console.error('Notify failed:', error);
         res.status(500).json({
             error:'Failed to notify candidates'
         });
@@ -1022,7 +1013,7 @@ app.get('/api/participant/me', authParticipant, async (req, res) => {
                 u.phone,
                 
                 f.id_fleet,
-                f.has_def,
+                f.has_defi,
                 f.has_lora,
                 f.dev_EUI,
                 f.med_training,
@@ -1430,9 +1421,174 @@ app.get('/api/stationary-defibrillators', async (req, res) => {
   }
 });
 
+// PARTICIPANT SETTINGS ROUTES
+
+app.put('/api/participant/profile', authParticipant, async (req, res) => {
+        try { 
+            const userId = req.participant.id_user;
+
+            const fleetId = req.participant.id_fleet;
+
+            const {first_name, last_name, phone, med_training} = req.body;
+
+            if (!first_name || !phone) {
+                return res.status(400).json({
+                    error:'First name and phone are required'});
+            }
+
+            const connection = await db.getConnection();
+
+            try {
+
+                await connection.beginTransaction();
+                await connection.query(
+                    `
+                    UPDATE users
+                    SET
+                        first_name = ?,
+                        last_name = ?,
+                        phone = ?
+                    WHERE id_user = ?
+                    `,
+                    [first_name, last_name || null, phone, userId]
+                );
+
+                await connection.query(
+                    `
+                    UPDATE fleet
+                    SET med_training = ?
+                    WHERE id_fleet = ?
+                    `,
+                    [med_training || null, fleetId]
+                );
+
+                await connection.commit();
+
+                res.json({ message: 'Profile updated successfully'});
+
+            } catch (error) {
+                await connection.rollback();
+                throw error;
+
+            } finally {
+                connection.release();
+            }
+
+        } catch (error) {
+
+            console.error('Participant profile update failed:',error);
+
+            res.status(500).json({
+                error:'Failed to update profile'});
+        }
+    }
+);
+
+app.put('/api/participant/lora', authParticipant, async (req, res) => {
+
+        try {
+            const fleetId =req.participant.id_fleet;
+
+            const {has_lora, dev_EUI} = req.body;
+            if (has_lora && !dev_EUI) {
+                return res.status(400).json({error:
+                        'DevEUI is required when LoRa is enabled'
+                });
+            }
+            await db.query(
+                `
+                UPDATE fleet
+                SET
+                    has_lora = ?,
+                    dev_EUI = ?
+                WHERE id_fleet = ?
+                `,
+                [ has_lora ? 1 : 0,
+                    has_lora
+                        ? dev_EUI
+                        : null,
+                    fleetId]
+            );
+            res.json({message: 'LoRa settings updated'});
+
+        } catch (error) {
+
+            console.error('LoRa update failed:',error);
+
+            res.status(500).json({error:'Failed to update LoRa settings'});
+        }
+    }
+);
+
+app.put('/api/participant/defibrillator', authParticipant, async (req, res) => {
+
+        try {
+
+            const fleetId = req.participant.id_fleet;
+            const {has_defi, is_working_defi} = req.body;
+
+            await db.query(
+                `
+                UPDATE fleet
+                SET
+                    has_defi = ?,
+                    is_working_defi = ?
+                WHERE id_fleet = ?
+                `,
+                [has_defi ? 1 : 0,
+                    has_defi ? ( is_working_defi ? 1 : 0): 0,
+                    fleetId
+                ]
+            );
+
+            res.json({message:'Defibrillator settings updated'});
+
+        } catch (error) {
+
+            console.error('Defibrillator update failed:', error);
+
+            res.status(500).json({error:'Failed to update defibrillator'});
+        }
+    }
+);
+
 const PORT = process.env.PORT || 3001;
 
 // init express server
 app.listen(PORT, () => {
     console.log(`Backend running on port ${PORT}`);
 });
+
+
+async function notifyCandidates(emergencyId) {
+    const settings = await getSystemSettings();
+
+    const radiusKm = Number(settings.candidateRadiusKm);
+
+    const candidates = await findCandidates(emergencyId, radiusKm);
+
+      for(const candidate of candidates) {
+            await db.query(`
+                INSERT INTO emergency_candidates (
+                id_emergency,
+                id_fleet,
+                distance_km,
+                notification_status,
+                response_status,
+                notified_at
+            )
+                VALUES(?, ?, ?, 'SENT', 'WAITING', NOW())
+            ON DUPLICATE KEY UPDATE
+                distance_km = VALUES(distance_km),
+                notification_status = 'SENT',
+                notified_at = NOW()
+                `, [
+                    emergencyId,
+                    candidate.id_fleet,
+                    candidate.distanceKm
+                ]);
+        }
+
+        return { candidatesFound: candidates.length };
+    }
+    

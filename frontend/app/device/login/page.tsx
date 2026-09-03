@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Siren } from 'lucide-react';
+import { Siren, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DeviceLoginPage() {
     const router = useRouter();
@@ -50,11 +51,19 @@ export default function DeviceLoginPage() {
 
             const data = await response.json();
 
+            const fleetId = data.participant?.id_fleet;
+
+            if(!fleetId) {
+                throw new Error('Backend did not return a fleetId');
+            }
+
             if (!response.ok) {
                 throw new Error(data.error || 'Login failed');
             }
 
-            router.push(`/device/${data.id_fleet}`);
+            localStorage.setItem('participantAccessToken', data.accessToken);
+
+            router.push(`/device/${fleetId}`);
 
         } catch (error) {
             console.error('Participant login failed:', error);
@@ -70,11 +79,13 @@ export default function DeviceLoginPage() {
         <main
             className="min-h-screen bg-slate-100 flex
                 items-center justify-center p-4">
+
             <div className="relative w-full
             max-w-107.5 min-h-212.5 bg-white
-            rounded-[2.5rem] border-[8px]
+            rounded-[2.5rem] border-8
              border-slate-900 shadow-2xl
             overflow-hidden">
+
             {/* Splash screen */}
             {showSplash && (
                 <div className=" absolute inset-0
@@ -193,6 +204,15 @@ export default function DeviceLoginPage() {
                              hover:bg-red-50 transition">
                              הרשמה לרשת
                         </button>
+
+                         <Link href="/device" 
+                                className="w-10
+                                h-10 rounded-full bg-white/10
+                             hover:bg-white/20 text-white
+                                flex items-center justify-center transition" 
+                                aria-label="חזרה">
+                                <ArrowLeft size={30} color="#dc2626"/>
+                                </Link>
 
                         </div>
                     </div>

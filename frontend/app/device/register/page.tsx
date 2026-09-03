@@ -15,7 +15,7 @@ export default function DeviceRegisterPage() {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
-    const [medicalTraining, setMedicalTraining] = useState('');
+    const [medicalTraining, setMedicalTraining] = useState('First Aid');
     const [participantType, setParticipantType] = useState<ParticipantType>('DEFIBRILLATOR');
     const [devEUI, setDevEUI] = useState('');
 
@@ -214,18 +214,41 @@ export default function DeviceRegisterPage() {
                         </div>
 
 
-                        <div>
-                            <label className="block mb-2 font-medium">
-                                הכשרה רפואית
-                            </label>
+                       <div>
+                        <label className="block mb-2 font-medium">
+                         הכשרה רפואית
+                        </label>
+                                        
+                            <select value={medicalTraining}
+                            onChange={(e) => {
+                                console.log('Selected  medical training:', e.target.value);
+                                setMedicalTraining(e.target.value);
 
-                            <input type="text" value={medicalTraining}
-                                onChange={(e) =>setMedicalTraining(e.target.value)}
-                                placeholder="לדוגמה: חובש/ת"
-                                className=" w-full border border-slate-300
-                                    rounded-xl px-4 py-3 bg-white"
-                            />
-                        </div>
+                            }}
+                            className="w-full border border-slate-300 rounded-xl
+                             px-4 py-3 bg-white">
+
+                            <option value="First Aid">
+                             עזרה ראשונה
+                             </option>
+
+                             <option value="Medic">
+                             חובש/ת
+                            </option>
+
+                          <option value="Paramedic">
+                          פרמדיק/ית
+                         </option>
+
+                          <option value="Doctor">
+                          רופא/ה
+                      </option>
+                    </select>                               
+
+                    </div>
+                                       
+
+
 
                         {hasLora && (
                             <div>
@@ -278,7 +301,7 @@ export default function DeviceRegisterPage() {
                     </form>
                 </div>
 
-                            
+
                 {/* Phone bottom */}
 
                 <div className="bg-white py-3">

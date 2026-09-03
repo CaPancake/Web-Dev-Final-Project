@@ -1,20 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState
+} from 'react';
 
-import { useParams } from 'next/navigation';
+import {
+    useParams
+} from 'next/navigation';
 
 import Link from 'next/link';
 
-import { BatteryFull, BatteryMedium, BatteryLow, CircleCheckBig,
-    CircleX, Radio, HeartPulse, MapPin,
-    UserRound, Phone, GraduationCap, Smartphone,
-    Pencil, LogOut, ExternalLink
+import {
+    BatteryFull,
+    BatteryMedium,
+    BatteryLow,
+    CircleX,
+    Radio,
+    HeartPulse,
+    MapPin,
+    UserRound,
+    Phone,
+    GraduationCap,
+    Smartphone,
+    Pencil,
+    LogOut,
+    ExternalLink,
+    Save,
+    X,
+    Plus,
+    Trash2
 } from 'lucide-react';
 
-// TYPES 
+
+// ==============================
+// TYPES
+// ==============================
 
 type DeviceInfo = {
+    id_user?: number;
     id_fleet: number;
 
     first_name?: string;
@@ -36,6 +60,24 @@ type DeviceInfo = {
 };
 
 
+type ProfileForm = {
+    first_name: string;
+    last_name: string;
+    phone: string;
+    med_training: string;
+};
+
+
+type LoRaForm = {
+    has_lora: boolean;
+    dev_EUI: string;
+};
+
+
+// ==============================
+// DISPLAY DICTIONARIES
+// ==============================
+
 const medicalTrainingLabels:
     Record<string, string> = {
 
@@ -48,175 +90,750 @@ const medicalTrainingLabels:
 };
 
 
+// ==============================
+// PAGE
+// ==============================
+
 export default function MyDevicePage() {
 
-    const params = useParams<{ fleetId: string }>();
+    const params =
+        useParams<{ fleetId: string }>();
 
-    const fleetId = Number(params.fleetId);
-
-
-    const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-
-    const [loading, setLoading] = useState(true);
-
-    const [error, setError] = useState('');
-
-    /* Load participant + equipment information. */
-    useEffect(() => {
-
-        if (!fleetId) {
-            setError('מזהה משתמש אינו תקין');
-            setLoading(false);
-            return;
-        }
+    const fleetId =
+        Number(params.fleetId);
 
 
-        async function loadDeviceInfo() {
-            try {
+    const [deviceInfo, setDeviceInfo] =
+        useState<DeviceInfo | null>(null);
 
-                const token = localStorage.getItem('participantAccessToken');
+    const [loading, setLoading] =
+        useState(true);
 
-                if(!token) {
-                    window.location.href =  '/login';
-                    return;
-                }
+    const [error, setError] =
+        useState('');
 
-                const response = await fetch(
-                `http://localhost:3001/api/fleet/${fleetId}/device-info`, 
-                {
-                    headers: { Authorization: 
-                        `Bearer ${token}`
-                    }
 
-                });
+    // -------- Profile editing --------
 
-                const data = await response.json();
+    const [editingProfile, setEditingProfile] =
+        useState(false);
 
-                if (!response.ok) {
+    const [savingProfile, setSavingProfile] =
+        useState(false);
 
-                    throw new Error(data.error ||'Failed to load participant information');
-                }
+    const [profileMessage, setProfileMessage] =
+        useState('');
 
-                setDeviceInfo(data);
+    const [profileForm, setProfileForm] =
+        useState<ProfileForm>({
+            first_name: '',
+            last_name: '',
+            phone: '',
+            med_training: ''
+        });
 
-            } catch (error) {
 
-                console.error('Failed to load participant:',error);
+    // -------- LoRa editing --------
 
-                if (error instanceof Error) {
-                    setError(error.message);
-                } else {
-                    setError('אירעה שגיאה בטעינת החשבון');
-                }
-            } finally {
-                setLoading(false);
-            }
-        }
-        loadDeviceInfo();
+    const [editingLoRa, setEditingLoRa] =
+        useState(false);
 
-    }, [fleetId]);
+    const [savingLoRa, setSavingLoRa] =
+        useState(false);
 
-    useEffect(() => {
+    const [loraMessage, setLoraMessage] =
+        useState('');
+
+    const [loraForm, setLoraForm] =
+        useState<LoRaForm>({
+            has_lora: false,
+            dev_EUI: ''
+        });
+
+
+    // -------- Defibrillator --------
+
+    const [
+        updatingDefibrillator,
+        setUpdatingDefibrillator
+    ] = useState(false);
+
+    const [
+        defibrillatorMessage,
+        setDefibrillatorMessage
+    ] = useState('');
+
+
+    // ==============================
+    // AUTH TOKEN
+    // ==============================
+
+    function getParticipantToken() {
+
+        return localStorage.getItem(
+            'participantAccessToken'
+        );
+    }
+
+
+    // ==============================
+    // LOAD PARTICIPANT
+    // ==============================
 
     async function loadParticipant() {
 
         try {
 
-            const token =localStorage.getItem('participantAccessToken');
+            const token =
+                getParticipantToken();
+
 
             if (!token) {
 
-                window.location.href ='/login';
+                window.location.href =
+                    '/login';
+
                 return;
             }
 
-            const response =await fetch('http://localhost:3001/api/participant/me',
-            {
-                headers: {
+
+            const response =
+                await fetch(
+                    'http://localhost:3001/api/participant/me',
+                    {
+                        headers: {
                             Authorization:
-                            `Bearer ${token}`
-                }
-            }
-            );
+                                `Bearer ${token}`
+                        }
+                    }
+                );
 
-            if (response.status === 401) {
 
-                localStorage.removeItem('participantAccessToken');
-                window.location.href ='/login';
+            if (
+                response.status === 401 ||
+                response.status === 403
+            ) {
+
+                localStorage.removeItem(
+                    'participantAccessToken'
+                );
+
+                window.location.href =
+                    '/login';
+
                 return;
             }
 
 
-            const data = await response.json();
+            const data =
+                await response.json();
+
 
             if (!response.ok) {
 
-                throw new Error(data.error ||'Failed to load participant');}
+                throw new Error(
+                    data.error ||
+                    'Failed to load participant'
+                );
+            }
 
-            setDeviceInfo(data);
+
+            setDeviceInfo(
+                data
+            );
+
+            setError('');
+
 
         } catch (error) {
 
-            console.error('Failed to load participant:',error);
+            console.error(
+                'Failed to load participant:',
+                error
+            );
 
-            if (error instanceof Error) {
-                setError(error.message);
+
+            if (
+                error instanceof Error
+            ) {
+
+                setError(
+                    error.message
+                );
 
             } else {
-                setError('אירעה שגיאה בטעינת החשבון');
+
+                setError(
+                    'אירעה שגיאה בטעינת החשבון'
+                );
             }
 
+
         } finally {
+
             setLoading(false);
         }
     }
-    loadParticipant();
-}, []);
 
-function handleLogout() {
-    localStorage.removeItem('participantAccessToken');
-    window.location.href = '/login';
-}
+
+    useEffect(() => {
+
+        loadParticipant();
+
+    }, []);
+
+
+    // ==============================
+    // LOGOUT
+    // ==============================
+
+    function handleLogout() {
+
+        localStorage.removeItem(
+            'participantAccessToken'
+        );
+
+        window.location.href =
+            '/login';
+    }
+
+
+    // ==============================
+    // PROFILE EDITING
+    // ==============================
+
+    function openProfileEditor() {
+
+        if (!deviceInfo) {
+            return;
+        }
+
+
+        setProfileMessage('');
+
+
+        setProfileForm({
+            first_name:
+                deviceInfo.first_name ?? '',
+
+            last_name:
+                deviceInfo.last_name ?? '',
+
+            phone:
+                deviceInfo.phone ?? '',
+
+            med_training:
+                deviceInfo.med_training ?? ''
+        });
+
+
+        setEditingProfile(true);
+    }
+
+
+    async function handleProfileSubmit(
+        event:
+            React.FormEvent<HTMLFormElement>
+    ) {
+
+        event.preventDefault();
+
+
+        const token =
+            getParticipantToken();
+
+
+        if (!token) {
+
+            window.location.href =
+                '/login';
+
+            return;
+        }
+
+
+        if (
+            !profileForm.first_name.trim() ||
+            !profileForm.phone.trim()
+        ) {
+
+            setProfileMessage(
+                'יש להזין שם פרטי ומספר טלפון'
+            );
+
+            return;
+        }
+
+
+        setSavingProfile(true);
+
+        setProfileMessage('');
+
+
+        try {
+
+            const response =
+                await fetch(
+                    'http://localhost:3001/api/participant/profile',
+                    {
+                        method: 'PUT',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+
+                        body:
+                            JSON.stringify(
+                                profileForm
+                            )
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    'Failed to update profile'
+                );
+            }
+
+
+            setProfileMessage(
+                'הפרטים עודכנו בהצלחה'
+            );
+
+
+            await loadParticipant();
+
+
+            setTimeout(() => {
+
+                setEditingProfile(
+                    false
+                );
+
+                setProfileMessage('');
+
+            }, 700);
+
+
+        } catch (error) {
+
+            console.error(
+                'Profile update failed:',
+                error
+            );
+
+
+            if (
+                error instanceof Error
+            ) {
+
+                setProfileMessage(
+                    `עדכון הפרטים נכשל: ${error.message}`
+                );
+
+            } else {
+
+                setProfileMessage(
+                    'עדכון הפרטים נכשל'
+                );
+            }
+
+
+        } finally {
+
+            setSavingProfile(false);
+        }
+    }
+
+
+    // ==============================
+    // DEFIBRILLATOR UPDATE
+    // ==============================
+
+    async function updateDefibrillator(
+        hasDefibrillator: boolean,
+        isWorking: boolean
+    ) {
+
+        const token =
+            getParticipantToken();
+
+
+        if (!token) {
+
+            window.location.href =
+                '/login';
+
+            return;
+        }
+
+
+        setUpdatingDefibrillator(
+            true
+        );
+
+        setDefibrillatorMessage(
+            ''
+        );
+
+
+        try {
+
+            const response =
+                await fetch(
+                    'http://localhost:3001/api/participant/defibrillator',
+                    {
+                        method: 'PUT',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+
+                        body:
+                            JSON.stringify({
+                                has_defi:
+                                    hasDefibrillator,
+
+                                is_working_defi:
+                                    isWorking
+                            })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    'Failed to update defibrillator'
+                );
+            }
+
+
+            setDefibrillatorMessage(
+                'מצב הדפיברילטור עודכן'
+            );
+
+
+            await loadParticipant();
+
+
+        } catch (error) {
+
+            console.error(
+                'Defibrillator update failed:',
+                error
+            );
+
+
+            if (
+                error instanceof Error
+            ) {
+
+                setDefibrillatorMessage(
+                    `העדכון נכשל: ${error.message}`
+                );
+
+            } else {
+
+                setDefibrillatorMessage(
+                    'עדכון הדפיברילטור נכשל'
+                );
+            }
+
+
+        } finally {
+
+            setUpdatingDefibrillator(
+                false
+            );
+        }
+    }
+
+
+    // ==============================
+    // LORA EDITING
+    // ==============================
+
+    function openLoRaEditor() {
+
+        if (!deviceInfo) {
+            return;
+        }
+
+
+        setLoraMessage('');
+
+
+        setLoraForm({
+            has_lora:
+                Boolean(
+                    deviceInfo.has_lora
+                ),
+
+            dev_EUI:
+                deviceInfo.dev_EUI ??
+                ''
+        });
+
+
+        setEditingLoRa(true);
+    }
+
+
+    async function handleLoRaSubmit(
+        event:
+            React.FormEvent<HTMLFormElement>
+    ) {
+
+        event.preventDefault();
+
+
+        const token =
+            getParticipantToken();
+
+
+        if (!token) {
+
+            window.location.href =
+                '/login';
+
+            return;
+        }
+
+
+        if (
+            loraForm.has_lora &&
+            !loraForm.dev_EUI.trim()
+        ) {
+
+            setLoraMessage(
+                'יש להזין DevEUI עבור מכשיר LoRa'
+            );
+
+            return;
+        }
+
+
+        setSavingLoRa(
+            true
+        );
+
+        setLoraMessage(
+            ''
+        );
+
+
+        try {
+
+            const response =
+                await fetch(
+                    'http://localhost:3001/api/participant/lora',
+                    {
+                        method: 'PUT',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+
+                        body:
+                            JSON.stringify({
+                                has_lora:
+                                    loraForm.has_lora,
+
+                                dev_EUI:
+                                    loraForm.has_lora
+                                        ? loraForm.dev_EUI
+                                        : null
+                            })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    'Failed to update LoRa'
+                );
+            }
+
+
+            setLoraMessage(
+                'פרטי מכשיר ה-LoRa עודכנו'
+            );
+
+
+            await loadParticipant();
+
+
+            setTimeout(() => {
+
+                setEditingLoRa(
+                    false
+                );
+
+                setLoraMessage('');
+
+            }, 700);
+
+
+        } catch (error) {
+
+            console.error(
+                'LoRa update failed:',
+                error
+            );
+
+
+            if (
+                error instanceof Error
+            ) {
+
+                setLoraMessage(
+                    `עדכון LoRa נכשל: ${error.message}`
+                );
+
+            } else {
+
+                setLoraMessage(
+                    'עדכון LoRa נכשל'
+                );
+            }
+
+
+        } finally {
+
+            setSavingLoRa(
+                false
+            );
+        }
+    }
+
+
+    // ==============================
+    // LOADING
+    // ==============================
 
     if (loading) {
 
         return (
 
-            <main dir="rtl" className=" min-h-screen
-             bg-slate-100 flex
-            items-center justify-center">
+            <main
+                dir="rtl"
+                className="
+                    min-h-screen
+                    bg-slate-100
+                    flex
+                    items-center
+                    justify-center
+                "
+            >
 
                 <p className="text-slate-500">
                     טוען את החשבון...
                 </p>
 
             </main>
-        );}
+        );
+    }
 
-    if (error || !deviceInfo) {
+
+    // ==============================
+    // ERROR
+    // ==============================
+
+    if (
+        error ||
+        !deviceInfo
+    ) {
 
         return (
-            <main dir="rtl" className="
-            min-h-screen bg-slate-100 flex
-            items-center justify-center
-            px-6">
 
-            <div className="bg-white border border-red-200
-            rounded-2xl p-8 max-w-lg text-center">
+            <main
+                dir="rtl"
+                className="
+                    min-h-screen
+                    bg-slate-100
+                    flex
+                    items-center
+                    justify-center
+                    px-6
+                "
+            >
 
-                <CircleX className="mx-auto mb-4 text-red-600"
-                        size={50}/>
+                <div
+                    className="
+                        bg-white
+                        border
+                        border-red-200
+                        rounded-2xl
+                        p-8
+                        max-w-lg
+                        text-center
+                    "
+                >
 
-                <h1 className="text-2xl font-bold mb-2">
+                    <CircleX
+                        className="
+                            mx-auto
+                            mb-4
+                            text-red-600
+                        "
+                        size={50}
+                    />
+
+
+                    <h1
+                        className="
+                            text-2xl
+                            font-bold
+                            mb-2
+                        "
+                    >
                         לא ניתן לטעון את החשבון
                     </h1>
 
-                    <p className=" text-slate-600 mb-6">
+
+                    <p
+                        className="
+                            text-slate-600
+                            mb-6
+                        "
+                    >
                         {
                             error ||
                             'המשתמש לא נמצא'
                         }
                     </p>
+
 
                     <Link
                         href="/login"
@@ -235,6 +852,10 @@ function handleLogout() {
         );
     }
 
+
+    // ==============================
+    // DERIVED DISPLAY VALUES
+    // ==============================
 
     const fullName =
         [
@@ -256,6 +877,10 @@ function handleLogout() {
             : 'לא צוינה';
 
 
+    // ==============================
+    // PAGE
+    // ==============================
+
     return (
 
         <main
@@ -275,7 +900,9 @@ function handleLogout() {
                 "
             >
 
-                {/* HEADER */}
+                {/* ========================= */}
+                {/* HEADER                    */}
+                {/* ========================= */}
 
                 <header
                     className="
@@ -324,15 +951,20 @@ function handleLogout() {
                                 mt-2
                             "
                         >
-                            כאן ניתן לצפות בפרטים
-                            ובציוד המשויך לחשבון.
+                            כאן ניתן לצפות ולעדכן
+                            את הפרטים והציוד המשויך לחשבון.
                         </p>
 
                     </div>
 
 
                     <div
-                        className="flex flex-wrap gap-3">
+                        className="
+                            flex
+                            flex-wrap
+                            gap-3
+                        "
+                    >
 
                         <Link
                             href="/"
@@ -350,11 +982,24 @@ function handleLogout() {
                             דף הבית
                         </Link>
 
-                    
-                        <button onClick={handleLogout} 
-                        className="flex items-center gap-2 
-                        bg-slate-900 hover:bg-slate-800
-                        text-white rounded-lg px-4 py-2 fond-medium">
+
+                        <button
+                            onClick={
+                                handleLogout
+                            }
+                            className="
+                                flex
+                                items-center
+                                gap-2
+                                bg-slate-900
+                                hover:bg-slate-800
+                                text-white
+                                rounded-lg
+                                px-4
+                                py-2
+                                font-medium
+                            "
+                        >
 
                             <LogOut size={18}/>
 
@@ -367,8 +1012,9 @@ function handleLogout() {
                 </header>
 
 
-
-                {/* PERSONAL DETAILS */}
+                {/* ========================= */}
+                {/* PERSONAL DETAILS          */}
+                {/* ========================= */}
 
                 <section
                     className="
@@ -419,8 +1065,9 @@ function handleLogout() {
 
 
                         <button
-                            disabled
-                            title="יתווסף לאחר חיבור אימות המשתמש"
+                            onClick={
+                                openProfileEditor
+                            }
                             className="
                                 flex
                                 items-center
@@ -430,8 +1077,7 @@ function handleLogout() {
                                 rounded-lg
                                 px-4
                                 py-2
-                                text-slate-400
-                                cursor-not-allowed
+                                hover:bg-slate-50
                             "
                         >
 
@@ -494,11 +1140,293 @@ function handleLogout() {
 
                     </div>
 
+
+                    {/* PROFILE EDIT FORM */}
+
+                    {editingProfile && (
+
+                        <form
+                            onSubmit={
+                                handleProfileSubmit
+                            }
+                            className="
+                                mt-7
+                                pt-7
+                                border-t
+                                border-slate-200
+                            "
+                        >
+
+                            <h3
+                                className="
+                                    font-bold
+                                    text-lg
+                                    mb-5
+                                "
+                            >
+                                עריכת פרטים
+                            </h3>
+
+
+                            <div
+                                className="
+                                    grid
+                                    md:grid-cols-2
+                                    gap-4
+                                "
+                            >
+
+                                <FormField
+                                    label="שם פרטי"
+                                >
+
+                                    <input
+                                        required
+                                        type="text"
+
+                                        value={
+                                            profileForm.first_name
+                                        }
+
+                                        onChange={(e) =>
+                                            setProfileForm({
+                                                ...profileForm,
+
+                                                first_name:
+                                                    e.target.value
+                                            })
+                                        }
+
+                                        className="
+                                            w-full
+                                            border
+                                            border-slate-300
+                                            rounded-lg
+                                            px-3
+                                            py-2
+                                        "
+                                    />
+
+                                </FormField>
+
+
+                                <FormField
+                                    label="שם משפחה"
+                                >
+
+                                    <input
+                                        type="text"
+
+                                        value={
+                                            profileForm.last_name
+                                        }
+
+                                        onChange={(e) =>
+                                            setProfileForm({
+                                                ...profileForm,
+
+                                                last_name:
+                                                    e.target.value
+                                            })
+                                        }
+
+                                        className="
+                                            w-full
+                                            border
+                                            border-slate-300
+                                            rounded-lg
+                                            px-3
+                                            py-2
+                                        "
+                                    />
+
+                                </FormField>
+
+
+                                <FormField
+                                    label="טלפון"
+                                >
+
+                                    <input
+                                        required
+                                        type="tel"
+
+                                        value={
+                                            profileForm.phone
+                                        }
+
+                                        onChange={(e) =>
+                                            setProfileForm({
+                                                ...profileForm,
+
+                                                phone:
+                                                    e.target.value
+                                            })
+                                        }
+
+                                        className="
+                                            w-full
+                                            border
+                                            border-slate-300
+                                            rounded-lg
+                                            px-3
+                                            py-2
+                                        "
+                                    />
+
+                                </FormField>
+
+
+                                <FormField
+                                    label="הכשרה רפואית"
+                                >
+
+                                    <select
+                                        value={
+                                            profileForm.med_training
+                                        }
+
+                                        onChange={(e) =>
+                                            setProfileForm({
+                                                ...profileForm,
+
+                                                med_training:
+                                                    e.target.value
+                                            })
+                                        }
+
+                                        className="
+                                            w-full
+                                            border
+                                            border-slate-300
+                                            rounded-lg
+                                            px-3
+                                            py-2
+                                            bg-white
+                                        "
+                                    >
+
+                                        <option value="">
+                                            ללא הכשרה
+                                        </option>
+
+                                        <option value="First Aid">
+                                            עזרה ראשונה
+                                        </option>
+
+                                        <option value="Medic">
+                                            חובש/ת
+                                        </option>
+
+                                        <option value="Paramedic">
+                                            פרמדיק/ית
+                                        </option>
+
+                                        <option value="Doctor">
+                                            רופא/ה
+                                        </option>
+
+                                    </select>
+
+                                </FormField>
+
+                            </div>
+
+
+                            {profileMessage && (
+
+                                <p
+                                    className="
+                                        mt-4
+                                        text-sm
+                                        font-medium
+                                        text-slate-700
+                                    "
+                                >
+                                    {profileMessage}
+                                </p>
+                            )}
+
+
+                            <div
+                                className="
+                                    flex
+                                    gap-3
+                                    mt-6
+                                "
+                            >
+
+                                <button
+                                    type="submit"
+
+                                    disabled={
+                                        savingProfile
+                                    }
+
+                                    className="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        bg-red-600
+                                        hover:bg-red-700
+                                        disabled:bg-slate-400
+                                        text-white
+                                        rounded-lg
+                                        px-5
+                                        py-2
+                                        font-bold
+                                    "
+                                >
+
+                                    <Save size={18}/>
+
+                                    {
+                                        savingProfile
+                                            ? 'שומר...'
+                                            : 'שמירה'
+                                    }
+
+                                </button>
+
+
+                                <button
+                                    type="button"
+
+                                    onClick={() =>
+                                        setEditingProfile(
+                                            false
+                                        )
+                                    }
+
+                                    className="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        border
+                                        border-slate-300
+                                        rounded-lg
+                                        px-5
+                                        py-2
+                                    "
+                                >
+
+                                    <X size={18}/>
+
+                                    ביטול
+
+                                </button>
+
+                            </div>
+
+                        </form>
+                    )}
+
                 </section>
 
 
-
-                {/* EQUIPMENT */}
+                {/* ========================= */}
+                {/* EQUIPMENT                 */}
+                {/* ========================= */}
 
                 <div
                     className="
@@ -509,7 +1437,9 @@ function handleLogout() {
                     "
                 >
 
-                    {/* DEFIBRILLATOR */}
+                    {/* ===================== */}
+                    {/* DEFIBRILLATOR         */}
+                    {/* ===================== */}
 
                     <section
                         className="
@@ -544,6 +1474,7 @@ function handleLogout() {
                                     className="text-red-600"
                                 />
 
+
                                 <h2
                                     className="
                                         text-2xl
@@ -562,8 +1493,11 @@ function handleLogout() {
                                         deviceInfo.has_defi
                                     )
                                 }
+
                                 activeText="רשום"
-                                inactiveText="לא משויך"
+
+                                inactiveText=
+                                    "לא משויך"
                             />
 
                         </div>
@@ -572,13 +1506,17 @@ function handleLogout() {
                         {deviceInfo.has_defi ? (
 
                             <>
+
                                 <DetailRow
-                                    label="מצב הדפיברילטור"
+                                    label=
+                                        "מצב הדפיברילטור"
+
                                     value={
                                         deviceInfo.is_working_defi
                                             ? 'תקין'
                                             : 'לא זמין'
                                     }
+
                                     success={
                                         Boolean(
                                             deviceInfo.is_working_defi
@@ -597,26 +1535,101 @@ function handleLogout() {
                                 >
 
                                     <button
-                                        disabled
-                                        title="יתווסף לאחר חיבור JWT למשתמש"
+                                        disabled={
+                                            updatingDefibrillator
+                                        }
+
+                                        onClick={() =>
+                                            updateDefibrillator(
+                                                true,
+
+                                                !Boolean(
+                                                    deviceInfo.is_working_defi
+                                                )
+                                            )
+                                        }
+
                                         className="
                                             bg-slate-100
-                                            text-slate-400
+                                            hover:bg-slate-200
+                                            disabled:bg-slate-100
+                                            disabled:text-slate-400
+                                            text-slate-800
                                             px-4
                                             py-2
                                             rounded-lg
                                             font-medium
-                                            cursor-not-allowed
                                         "
                                     >
                                         {
-                                            deviceInfo.is_working_defi
-                                                ? 'דיווח על תקלה'
-                                                : 'סימון כתקין'
+                                            updatingDefibrillator
+                                                ? 'מעדכן...'
+
+                                                : deviceInfo
+                                                    .is_working_defi
+
+                                                    ? 'דיווח על תקלה'
+
+                                                    : 'סימון כתקין'
                                         }
                                     </button>
 
+
+                                    <button
+                                        disabled={
+                                            updatingDefibrillator
+                                        }
+
+                                        onClick={() =>
+                                            updateDefibrillator(
+                                                false,
+                                                false
+                                            )
+                                        }
+
+                                        className="
+                                            flex
+                                            items-center
+                                            gap-2
+                                            border
+                                            border-red-200
+                                            text-red-700
+                                            hover:bg-red-50
+                                            px-4
+                                            py-2
+                                            rounded-lg
+                                        "
+                                    >
+
+                                        <Trash2
+                                            size={17}
+                                        />
+
+                                        הסרת דפיברילטור
+
+                                    </button>
+
                                 </div>
+
+
+                                {
+                                    defibrillatorMessage &&
+                                    (
+
+                                        <p
+                                            className="
+                                                mt-4
+                                                text-sm
+                                                font-medium
+                                            "
+                                        >
+                                            {
+                                                defibrillatorMessage
+                                            }
+                                        </p>
+                                    )
+                                }
+
                             </>
 
                         ) : (
@@ -635,17 +1648,36 @@ function handleLogout() {
 
 
                                 <button
-                                    disabled
+                                    disabled={
+                                        updatingDefibrillator
+                                    }
+
+                                    onClick={() =>
+                                        updateDefibrillator(
+                                            true,
+                                            true
+                                        )
+                                    }
+
                                     className="
-                                        bg-slate-100
-                                        text-slate-400
+                                        flex
+                                        items-center
+                                        gap-2
+                                        bg-red-600
+                                        hover:bg-red-700
+                                        disabled:bg-slate-400
+                                        text-white
                                         px-4
                                         py-2
                                         rounded-lg
-                                        cursor-not-allowed
+                                        font-bold
                                     "
                                 >
+
+                                    <Plus size={18}/>
+
                                     הוספת דפיברילטור
+
                                 </button>
 
                             </div>
@@ -654,8 +1686,9 @@ function handleLogout() {
                     </section>
 
 
-
-                    {/* LORA */}
+                    {/* ===================== */}
+                    {/* LORA                  */}
+                    {/* ===================== */}
 
                     <section
                         className="
@@ -686,8 +1719,10 @@ function handleLogout() {
 
                                 <Radio
                                     size={34}
-                                    className="text-red-400"
+                                    className=
+                                        "text-red-400"
                                 />
+
 
                                 <h2
                                     className="
@@ -707,8 +1742,12 @@ function handleLogout() {
                                         deviceInfo.has_lora
                                     )
                                 }
+
                                 activeText="רשום"
-                                inactiveText="לא משויך"
+
+                                inactiveText=
+                                    "לא משויך"
+
                                 dark
                             />
 
@@ -717,24 +1756,28 @@ function handleLogout() {
 
                         {deviceInfo.has_lora ? (
 
-                            <div>
+                            <>
 
                                 <DarkDetailRow
                                     label="DevEUI"
+
                                     value={
                                         deviceInfo.dev_EUI ||
                                         '-'
                                     }
+
                                     mono
                                 />
 
 
                                 <DarkDetailRow
                                     label="סוללה"
+
                                     valueComponent={
                                         <BatteryStatus
                                             battery={
-                                                deviceInfo.lora_battery
+                                                deviceInfo
+                                                    .lora_battery
                                             }
                                         />
                                     }
@@ -742,9 +1785,12 @@ function handleLogout() {
 
 
                                 <DarkDetailRow
-                                    label="שידור אחרון"
+                                    label=
+                                        "שידור אחרון"
+
                                     value={
-                                        deviceInfo.time_of_transmit ||
+                                        deviceInfo
+                                            .time_of_transmit ||
                                         'טרם התקבל'
                                     }
                                 />
@@ -760,15 +1806,18 @@ function handleLogout() {
                                 >
 
                                     <button
-                                        disabled
-                                        title="יתווסף לאחר חיבור JWT למשתמש"
+                                        onClick={
+                                            openLoRaEditor
+                                        }
+
                                         className="
                                             bg-slate-800
-                                            text-slate-500
+                                            hover:bg-slate-700
+                                            text-white
                                             px-4
                                             py-2
                                             rounded-lg
-                                            cursor-not-allowed
+                                            font-medium
                                         "
                                     >
                                         ניהול מכשיר LoRa
@@ -779,6 +1828,7 @@ function handleLogout() {
                                         href={
                                             `/device/lora/${fleetId}`
                                         }
+
                                         className="
                                             flex
                                             items-center
@@ -803,7 +1853,7 @@ function handleLogout() {
 
                                 </div>
 
-                            </div>
+                            </>
 
                         ) : (
 
@@ -821,20 +1871,257 @@ function handleLogout() {
 
 
                                 <button
-                                    disabled
+                                    onClick={() => {
+
+                                        setLoraForm({
+                                            has_lora:
+                                                true,
+
+                                            dev_EUI:
+                                                ''
+                                        });
+
+                                        setLoraMessage(
+                                            ''
+                                        );
+
+                                        setEditingLoRa(
+                                            true
+                                        );
+                                    }}
+
                                     className="
-                                        bg-slate-800
-                                        text-slate-500
+                                        flex
+                                        items-center
+                                        gap-2
+                                        bg-red-600
+                                        hover:bg-red-700
+                                        text-white
                                         px-4
                                         py-2
                                         rounded-lg
-                                        cursor-not-allowed
+                                        font-bold
                                     "
                                 >
+
+                                    <Plus size={18}/>
+
                                     הוספת מכשיר LoRa
+
                                 </button>
 
                             </div>
+                        )}
+
+
+                        {/* LORA EDIT FORM */}
+
+                        {editingLoRa && (
+
+                            <form
+                                onSubmit={
+                                    handleLoRaSubmit
+                                }
+
+                                className="
+                                    mt-7
+                                    pt-7
+                                    border-t
+                                    border-slate-800
+                                "
+                            >
+
+                                <h3
+                                    className="
+                                        font-bold
+                                        text-lg
+                                        mb-5
+                                    "
+                                >
+                                    ניהול LoRa
+                                </h3>
+
+
+                                <label
+                                    className="
+                                        flex
+                                        items-center
+                                        gap-3
+                                        mb-5
+                                    "
+                                >
+
+                                    <input
+                                        type="checkbox"
+
+                                        checked={
+                                            loraForm.has_lora
+                                        }
+
+                                        onChange={(e) =>
+                                            setLoraForm({
+                                                ...loraForm,
+
+                                                has_lora:
+                                                    e.target.checked
+                                            })
+                                        }
+                                    />
+
+                                    <span>
+                                        מכשיר LoRa פעיל
+                                        בחשבון
+                                    </span>
+
+                                </label>
+
+
+                                {
+                                    loraForm.has_lora &&
+                                    (
+
+                                        <div>
+
+                                            <label
+                                                className="
+                                                    block
+                                                    text-sm
+                                                    text-slate-300
+                                                    mb-2
+                                                "
+                                            >
+                                                DevEUI
+                                            </label>
+
+
+                                            <input
+                                                required
+                                                dir="ltr"
+                                                type="text"
+
+                                                value={
+                                                    loraForm.dev_EUI
+                                                }
+
+                                                onChange={(e) =>
+                                                    setLoraForm({
+                                                        ...loraForm,
+
+                                                        dev_EUI:
+                                                            e.target.value
+                                                    })
+                                                }
+
+                                                className="
+                                                    w-full
+                                                    bg-slate-900
+                                                    border
+                                                    border-slate-600
+                                                    rounded-lg
+                                                    px-3
+                                                    py-2
+                                                    font-mono
+                                                    text-white
+                                                "
+                                            />
+
+                                        </div>
+                                    )
+                                }
+
+
+                                {
+                                    loraMessage &&
+                                    (
+
+                                        <p
+                                            className="
+                                                mt-4
+                                                text-sm
+                                                font-medium
+                                            "
+                                        >
+                                            {
+                                                loraMessage
+                                            }
+                                        </p>
+                                    )
+                                }
+
+
+                                <div
+                                    className="
+                                        flex
+                                        gap-3
+                                        mt-6
+                                    "
+                                >
+
+                                    <button
+                                        type="submit"
+
+                                        disabled={
+                                            savingLoRa
+                                        }
+
+                                        className="
+                                            flex
+                                            items-center
+                                            gap-2
+                                            bg-red-600
+                                            hover:bg-red-700
+                                            disabled:bg-slate-600
+                                            text-white
+                                            rounded-lg
+                                            px-5
+                                            py-2
+                                            font-bold
+                                        "
+                                    >
+
+                                        <Save
+                                            size={18}
+                                        />
+
+                                        {
+                                            savingLoRa
+                                                ? 'שומר...'
+                                                : 'שמירה'
+                                        }
+
+                                    </button>
+
+
+                                    <button
+                                        type="button"
+
+                                        onClick={() =>
+                                            setEditingLoRa(
+                                                false
+                                            )
+                                        }
+
+                                        className="
+                                            flex
+                                            items-center
+                                            gap-2
+                                            border
+                                            border-slate-600
+                                            rounded-lg
+                                            px-5
+                                            py-2
+                                        "
+                                    >
+
+                                        <X size={18}/>
+
+                                        ביטול
+
+                                    </button>
+
+                                </div>
+
+                            </form>
                         )}
 
                     </section>
@@ -842,8 +2129,9 @@ function handleLogout() {
                 </div>
 
 
-
-                {/* LAST LOCATION */}
+                {/* ========================= */}
+                {/* LAST DEVICE DATA          */}
+                {/* ========================= */}
 
                 {deviceInfo.has_lora && (
 
@@ -868,9 +2156,12 @@ function handleLogout() {
                         >
 
                             <MapPin
-                                className="text-red-600"
+                                className=
+                                    "text-red-600"
+
                                 size={30}
                             />
+
 
                             <h2
                                 className="
@@ -894,12 +2185,15 @@ function handleLogout() {
 
                             <InfoCard
                                 label="Latitude"
+
                                 value={
                                     deviceInfo.latitude !== null &&
                                     deviceInfo.latitude !== undefined
+
                                         ? String(
                                             deviceInfo.latitude
                                         )
+
                                         : 'לא התקבל'
                                 }
                             />
@@ -907,12 +2201,15 @@ function handleLogout() {
 
                             <InfoCard
                                 label="Longitude"
+
                                 value={
                                     deviceInfo.longitude !== null &&
                                     deviceInfo.longitude !== undefined
+
                                         ? String(
                                             deviceInfo.longitude
                                         )
+
                                         : 'לא התקבל'
                                 }
                             />
@@ -920,8 +2217,10 @@ function handleLogout() {
 
                             <InfoCard
                                 label="שידור אחרון"
+
                                 value={
-                                    deviceInfo.time_of_transmit ||
+                                    deviceInfo
+                                        .time_of_transmit ||
                                     'טרם התקבל'
                                 }
                             />
@@ -932,8 +2231,9 @@ function handleLogout() {
                 )}
 
 
-
-                {/* SIMULATORS */}
+                {/* ========================= */}
+                {/* SIMULATORS                */}
+                {/* ========================= */}
 
                 <section
                     className="
@@ -956,7 +2256,8 @@ function handleLogout() {
 
                         <Smartphone
                             size={30}
-                            className="text-red-600"
+                            className=
+                                "text-red-600"
                         />
 
 
@@ -996,6 +2297,7 @@ function handleLogout() {
                             href={
                                 `/device/${fleetId}`
                             }
+
                             className="
                                 bg-red-600
                                 hover:bg-red-700
@@ -1016,6 +2318,7 @@ function handleLogout() {
                                 href={
                                     `/device/lora/${fleetId}`
                                 }
+
                                 className="
                                     bg-slate-900
                                     hover:bg-slate-800
@@ -1041,10 +2344,38 @@ function handleLogout() {
 }
 
 
+// ==============================
+// UI HELPERS
+// ==============================
 
-/* -------------------------------- */
-/* UI HELPERS                       */
-/* -------------------------------- */
+function FormField({
+    label,
+    children
+}: {
+    label: string;
+    children:
+        React.ReactNode;
+}) {
+
+    return (
+
+        <div>
+
+            <label
+                className="
+                    block
+                    font-medium
+                    mb-1
+                "
+            >
+                {label}
+            </label>
+
+            {children}
+
+        </div>
+    );
+}
 
 
 function InfoCard({
@@ -1092,7 +2423,6 @@ function InfoCard({
 }
 
 
-
 function StatusBadge({
     active,
     activeText,
@@ -1111,49 +2441,49 @@ function StatusBadge({
             className={
                 active
 
-                    ? (
-                        dark
-                            ? `
-                                bg-green-900
-                                text-green-300
-                                px-3
-                                py-1
-                                rounded-full
-                                text-sm
-                                font-bold
-                              `
-                            : `
-                                bg-green-100
-                                text-green-800
-                                px-3
-                                py-1
-                                rounded-full
-                                text-sm
-                                font-bold
-                              `
-                    )
+                    ? dark
 
-                    : (
-                        dark
-                            ? `
-                                bg-slate-800
-                                text-slate-400
-                                px-3
-                                py-1
-                                rounded-full
-                                text-sm
-                                font-bold
-                              `
-                            : `
-                                bg-slate-100
-                                text-slate-500
-                                px-3
-                                py-1
-                                rounded-full
-                                text-sm
-                                font-bold
-                              `
-                    )
+                        ? `
+                            bg-green-900
+                            text-green-300
+                            px-3
+                            py-1
+                            rounded-full
+                            text-sm
+                            font-bold
+                          `
+
+                        : `
+                            bg-green-100
+                            text-green-800
+                            px-3
+                            py-1
+                            rounded-full
+                            text-sm
+                            font-bold
+                          `
+
+                    : dark
+
+                        ? `
+                            bg-slate-800
+                            text-slate-400
+                            px-3
+                            py-1
+                            rounded-full
+                            text-sm
+                            font-bold
+                          `
+
+                        : `
+                            bg-slate-100
+                            text-slate-500
+                            px-3
+                            py-1
+                            rounded-full
+                            text-sm
+                            font-bold
+                          `
             }
         >
             {
@@ -1164,7 +2494,6 @@ function StatusBadge({
         </span>
     );
 }
-
 
 
 function DetailRow({
@@ -1198,9 +2527,13 @@ function DetailRow({
             <span
                 className={
                     success === undefined
+
                         ? 'font-medium'
+
                         : success
+
                             ? 'font-bold text-green-700'
+
                             : 'font-bold text-red-700'
                 }
             >
@@ -1212,7 +2545,6 @@ function DetailRow({
 }
 
 
-
 function DarkDetailRow({
     label,
     value,
@@ -1221,7 +2553,8 @@ function DarkDetailRow({
 }: {
     label: string;
     value?: string;
-    valueComponent?: React.ReactNode;
+    valueComponent?:
+        React.ReactNode;
     mono?: boolean;
 }) {
 
@@ -1253,6 +2586,7 @@ function DarkDetailRow({
                                 ? 'ltr'
                                 : undefined
                         }
+
                         className={
                             mono
                                 ? 'font-mono text-sm'
@@ -1269,17 +2603,21 @@ function DarkDetailRow({
 }
 
 
-
 function BatteryStatus({
     battery
 }: {
-    battery: number | null;
+    battery:
+        number | null;
 }) {
 
     if (battery === null) {
 
         return (
-            <span className="text-slate-400">
+
+            <span
+                className=
+                    "text-slate-400"
+            >
                 לא התקבל
             </span>
         );
@@ -1304,7 +2642,10 @@ function BatteryStatus({
                     {battery}%
                 </span>
 
-                <BatteryLow size={22}/>
+
+                <BatteryLow
+                    size={22}
+                />
 
             </div>
         );
@@ -1327,7 +2668,10 @@ function BatteryStatus({
                     {battery}%
                 </span>
 
-                <BatteryMedium size={22}/>
+
+                <BatteryMedium
+                    size={22}
+                />
 
             </div>
         );
@@ -1348,7 +2692,10 @@ function BatteryStatus({
                 {battery}%
             </span>
 
-            <BatteryFull size={22}/>
+
+            <BatteryFull
+                size={22}
+            />
 
         </div>
     );

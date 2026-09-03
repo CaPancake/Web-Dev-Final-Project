@@ -56,7 +56,16 @@ export default function LoginPage() {
        * Backend returns the fleet ID belonging
        * to the identified participant.
        */
-      router.push(`/my-device/${data.id_fleet}`);
+
+      console.log('Full login response:', data);
+
+      console.log('Participant:', data.participant);
+      
+      console.log('Fleet ID:', data.participant?.id_fleet);
+      
+      localStorage.setItem('participantAccessToken', data.accessToken);
+
+      router.push(`/my-device/${data.participant.id_fleet}`);
 
     } catch (error) {
       console.error('Participant login failed:', error);

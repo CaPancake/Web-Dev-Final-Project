@@ -166,7 +166,7 @@ export default function LoRaIncomingAlerts( {fleetId, onAlertSignal, onResponseC
                         
                         respond(alert.id_emergency, 'ACCEPTED')
                     }
-                    className="px-3 py-1 bg-green-700 text-white rounded ml-32">
+                    className="px-3 py-1 bg-green-700 text-white rounded ml-28">
                      אשר
                     </button>
 

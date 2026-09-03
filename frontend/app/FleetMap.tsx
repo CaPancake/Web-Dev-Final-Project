@@ -10,6 +10,27 @@ import { MapContainer, TileLayer, Marker, Popup,
 
 delete (L.Icon.Default.prototype as any).__getIconUrl;
 
+// LABELS
+const medicalTrainingLabels:
+    Record<string, string> = {
+
+    'First Aid': 'עזרה ראשונה',
+    Medic: 'חובש/ת',
+    Paramedic: 'פרמדיק/ית',
+    Doctor: 'רופא/ה',
+    NONE: 'ללא הכשרה',
+    None: 'ללא הכשרה'
+};
+
+const emergencyStatusLabels:
+    Record<string, string> = {
+
+    OPEN: 'אירוע פתוח',
+    EN_ROUTE: 'מתנדב בדרכו לנקודה',
+    RESOLVED: 'אירוע נסגר',
+    RESPONDER_FOUND: 'נמצא מתנדב רלוונטי',
+};
+
 // ICONS
 
 const fleetIcon = L.icon({
@@ -432,17 +453,8 @@ function MapClickReset({
 
 // MAP
 
-export default function FleetMap({
-    fleet,
-    stationaryDefibrillators,
-    emergencies,
-
-    selectedEmergencyId,
-    candidates,
-
-    onEmergencySelect,
-    onClearEmergencySelection
-
+export default function FleetMap({fleet, stationaryDefibrillators,emergencies,selectedEmergencyId,candidates,
+    onEmergencySelect, onClearEmergencySelection
 }: Props) {
 
     // Registered fleet devices with known location
@@ -460,29 +472,15 @@ export default function FleetMap({
         Emergency selected: show only fleet members that are candidates
     */
 
-    const candidateIds =
-        new Set( candidates.map( (candidate) => Number(candidate.id_fleet))
-        );
+    const candidateIds = new Set( candidates.map( (candidate) => Number(candidate.id_fleet)));
 
-    const displayedFleet =
-        selectedEmergencyId === null
-
-            ? devicesWithLocation
-
-            : devicesWithLocation.filter(
-                (member) =>
-                    candidateIds.has(
-                        Number(member.id_fleet)
-                    )
-            );
+    const displayedFleet = selectedEmergencyId === null
+    ? devicesWithLocation
+    : devicesWithLocation.filter((member) =>candidateIds.has(Number(member.id_fleet)));
 
     // Stationary defibrillators
 
-    const validStationaryDefibrillators =
-        stationaryDefibrillators.filter((defi) =>
-                Number.isFinite(Number(defi.latitude)) &&
-                Number.isFinite(Number(defi.longitude))
-        );
+    const validStationaryDefibrillators =stationaryDefibrillators.filter((defi) =>Number.isFinite(Number(defi.latitude)) && Number.isFinite(Number(defi.longitude)));
 
     return (
 
@@ -503,11 +501,9 @@ export default function FleetMap({
                         onClearEmergencySelection
                     }/>
 
-                <TileLayer
-                    attribution={'&copy; OpenStreetMap contributors'}
+                <TileLayer attribution={'&copy; OpenStreetMap contributors'}
                     url={'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
                 />
-
 
                 {/*STATIONARY DEFIBRILLATORS */}
 
@@ -516,20 +512,15 @@ export default function FleetMap({
                 stationaryDefibrillators} />
 
 
-                {/*  REGISTERED FLEET */}
+                {/* REGISTERED FLEET */}
 
-                {displayedFleet.map(
-                    (item) => (
+                {displayedFleet.map((item) => (
 
-                        <Marker
-                            key={`fleet-${item.id_fleet}`}
+                        <Marker key={`fleet-${item.id_fleet}`}
 
-                            position={[Number(item.latitude),
-                                Number(item.longitude)]}
+                            position={[Number(item.latitude), Number(item.longitude)]}
 
-                            icon={ selectedEmergencyId !==null
-                                    ? candidateIcon
-                                    : fleetIcon }>
+                            icon={ selectedEmergencyId !==null ? candidateIcon : fleetIcon }>
 
                             <Popup>
 
@@ -601,7 +592,7 @@ export default function FleetMap({
                                                 </strong>{' '}
 
                                                 {
-                                                    item.med_training
+                                                    medicalTrainingLabels[item.med_training]
                                                 }
 
                                             </p>
@@ -659,12 +650,9 @@ export default function FleetMap({
                         return (
 
                             <Marker
-                                key={
-                                    `emergency-${emergency.id_emergency}`
-                                }
+                                key={`emergency-${emergency.id_emergency}`}
 
-                                position={[Number(emergency.latitude),
-                                    Number(emergency.longitude)]}
+                                position={[Number(emergency.latitude), Number(emergency.longitude)]}
 
                                 /*
                                     Selected emergency stays
@@ -681,12 +669,9 @@ export default function FleetMap({
 
                                 eventHandlers={{
 
-                                    click: (event) => {
-                                        L.DomEvent
-                                            .stopPropagation(event.originalEvent);
+                                    click: (event) => {L.DomEvent.stopPropagation(event.originalEvent);
 
                                         if (!isSelected) {
-
                                         onEmergencySelect(emergency.id_emergency);
                                         }
                                     }
@@ -695,13 +680,9 @@ export default function FleetMap({
                                 {( selectedEmergencyId ===null ||
                                         isSelected) && (
 
-                                        <Popup
-                                            closeButton={true}
-                                            autoClose={true}
-                                            closeOnClick={false}>
+                                        <Popup closeButton={true} autoClose={true} closeOnClick={false}>
 
                                             <div dir="rtl" className="text-center">
-
                                             <h3 className="font-bold text-base mb-2">
                                                     אירוע חירום #
                                                     {
@@ -715,7 +696,7 @@ export default function FleetMap({
                                                     </strong>{' '}
 
                                                     {
-                                                        emergency.status
+                                                        emergencyStatusLabels[emergency.status]
                                                     }
 
                                                 </p>
