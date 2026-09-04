@@ -7,12 +7,14 @@ type Props = {
         latitude: number,
         longitude: number
     ) => void;
+    onRouteIndexChange?:(index: number) => void;
 };
 
 export default function MovementSimulator({
     fleetId,
     geometry,
-    onPositionChange
+    onPositionChange,
+    onRouteIndexChange
 }: Props) {
     async function sendLocation(
         latitude: number, 
@@ -39,8 +41,10 @@ export default function MovementSimulator({
 
     async function startSimulation() {
         try {
-            for(const point of geometry) {
+            for(let index = 0; index < geometry.length; index++) {
                 // ORS [longitude, latitude]
+
+                const point = geometry[index];
 
                 const longitude = Number(point[0]);
                 const latitude = Number(point[1]);
@@ -54,6 +58,7 @@ export default function MovementSimulator({
                     latitude,
                     longitude
                 );
+                onRouteIndexChange?.(index);
 
                 // simulation delay
                 await new Promise(
@@ -72,13 +77,8 @@ export default function MovementSimulator({
     return (
         <button
         onClick={startSimulation}
-        className="
-            mt-4
-            px-4 py-2
-            bg-blue-600
-            text-white
-            rounded-lg"
-        >
+        className="mt-4 px-4 py-2 bg-blue-600 text-white
+        rounded-lg">
             Simulate Responder Movement
         </button>
     )

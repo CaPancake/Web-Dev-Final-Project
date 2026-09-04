@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import MovementSimulator from './MovementSimulator';
 import dynamic from 'next/dynamic';
+import { LargeNumberLike } from 'crypto';
 
 const NavigationMap = dynamic(
     () => import('./NavigationMap'),
@@ -23,11 +24,20 @@ type ActiveEmergency = {
     status: string;
 };
 
+type NavigationInstruction = {
+    instruction: string;
+    distanceMeters: number;
+    durationSeconds: number;
+    wayPoints: number[];
+}
+
 type RouteData = {
     distanceKm: number;
     durationMinutes: number;
     geometry: number[][];
+    instructions: NavigationInstruction[];
 };
+
 
 type Props = {
     fleetId: number;
@@ -35,24 +45,23 @@ type Props = {
 
 export default function ActiveResponse({ fleetId }: Props) {
 
-    const [activeEmergency, setActiveEmergency] =
-        useState<ActiveEmergency | null>(null);
+    const [activeEmergency, setActiveEmergency] = useState<ActiveEmergency | null>(null);
 
     const [loading, setLoading] = useState(true);
 
-    const [route, setRoute] =
-        useState<RouteData | null>(null);
+    const [route, setRoute] = useState<RouteData | null>(null);
 
     const [startingNavigation, setStartingNavigation] = useState(false);
 
-    const [currentPosition, setCurrentPosition] =
-        useState<[number, number] | null>(null);
+    const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
 
-    const [breadcrumbPositions, setBreadcrumbPositions] =
-        useState<[number, number][]>([]);
+    const [breadcrumbPositions, setBreadcrumbPositions] = useState<[number, number][]>([]);
 
     const [hasArrived, setHasArrived] = useState(false);
 
+    const [currentInstructionIndex, setCurrentInstructionIndex] = useState(0);
+
+    const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
 
     async function loadActiveResponse() {
         try {
@@ -67,33 +76,23 @@ export default function ActiveResponse({ fleetId }: Props) {
             }
 
             const data = await response.json();
-
             setActiveEmergency(data);
 
-        } catch (error) {
-            console.error(
-                'Failed to load active response:',
-                error
-            );
+        } catch (error) { console.error('Failed to load active response:', error);
         } finally {
             setLoading(false);
         }
     }
 
-
     useEffect(() => {
         loadActiveResponse();
     }, [fleetId]);
-
 
     // arrival check 
 
     useEffect(() => {
 
-        if (
-            !activeEmergency ||
-            activeEmergency.status !== 'EN_ROUTE'
-        ) {
+        if (!activeEmergency || activeEmergency.status !== 'EN_ROUTE') {
             return;
         }
 
@@ -108,14 +107,10 @@ export default function ActiveResponse({ fleetId }: Props) {
                 }
 
                 const data = await response.json();
-
                 setHasArrived(data.arrived);
 
             } catch (error) {
-                console.error(
-                    'Failed to check responder arrival:',
-                    error
-                );
+                console.error('Failed to check responder arrival:', error);
             }
         }
 
@@ -245,6 +240,24 @@ export default function ActiveResponse({ fleetId }: Props) {
         }
     }
 
+     useEffect(() => {
+
+        if (!route || !route.instructions?.length) {
+        return;
+    }
+    // way points indicate how many "points" are covered by an instruction
+    const instructionIndex = route.instructions.findIndex(
+        instruction => {
+            const [start, end] = instruction.wayPoints;
+
+                return (currentRouteIndex >= start && currentRouteIndex <= end);
+            }
+        );
+        if (instructionIndex !== -1) {
+            setCurrentInstructionIndex(instructionIndex);
+        }
+    }, [currentRouteIndex, route]);
+
     if (loading) {
         return (
             <p className="mb-4">
@@ -256,7 +269,6 @@ export default function ActiveResponse({ fleetId }: Props) {
     if (!activeEmergency) {
         return null;
     }
-
 
     return (
         <section className="w-full max-w-xl mb-8">
@@ -323,6 +335,25 @@ export default function ActiveResponse({ fleetId }: Props) {
                             </p>
                         </div>
 
+                        {route.instructions?.length > 0 && (
+                            <div className=" mb-4 rounded-xl bg-slate-900
+                             text-white p-4">
+                                
+                                <p className="text-xs text-slate-400">
+                                     הוראת ניווט
+                                     </p>
+                                     <p className="font-bold text-lg mt-1">
+                                        {route.instructions[ currentInstructionIndex]?.instruction}
+                                         </p>
+                                         
+                                         <p className="text-sm mt-1 text-slate-300">
+                                             בעוד{' '}
+                                             {Math.round(route.instructions[currentInstructionIndex]?.distanceMeters ?? 0)}
+                                             {' '} מטר
+                                             </p>
+                                             </div>
+                                            )}
+
 
                         <NavigationMap geometry={route.geometry}
                                 emergencyLatitude={activeEmergency.latitude}
@@ -339,16 +370,11 @@ export default function ActiveResponse({ fleetId }: Props) {
                             onPositionChange={(
                                 latitude,
                                 longitude
-                            ) => {
-
-                                const newPosition:
-                                    [number, number] = [latitude,longitude];
-
+                            ) => {const newPosition:[number, number] = [latitude,longitude];
                                 setCurrentPosition(newPosition);
-
-                                setBreadcrumbPositions(
-                                    (previous) => [...previous,newPosition]);
+                                setBreadcrumbPositions((previous) => [...previous,newPosition]);
                             }}
+                            onRouteIndexChange={setCurrentRouteIndex}
                         />
 
 

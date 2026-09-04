@@ -21,7 +21,7 @@ type HomeContent = {
 
 const emptyContent: HomeContent = {
     hero: {
-        title: '',
+        title: 'דפיברילטור קרוב יכול להציל חיים',
         subtitle: ''
     },
 

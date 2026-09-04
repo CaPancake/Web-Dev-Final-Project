@@ -581,14 +581,21 @@ app.get('/api/emergencies/:id/route', async (req,res) => {
 
         const routeData = await orsResponse.json();
         const feature = routeData.features[0];
+        const instructions = routeData.features?.[0]
+        ?.properties
+        ?.segments?.[0]
+        ?.steps
+        ?.map((step) => ({instruction:step.instruction,
+            distanceMeters: Number(step.distance),
+            durationSeconds:Number(step.duration),
+            wayPoints:step.way_points
+        })) ?? [];
 
         res.json({
-            distanceKm:
-                feature.properties.summary.distance / 1000,
-            durationMinutes:
-                feature.properties.summary.duration / 60,
-            geometry: 
-                feature.geometry.coordinates
+            distanceKm:feature.properties.summary.distance / 1000,
+            durationMinutes: feature.properties.summary.duration / 60,
+            geometry: feature.geometry.coordinates,
+            instructions
         });
 
     } // try block
