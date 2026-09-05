@@ -110,8 +110,7 @@ export default function Home() {
   const [fleet, setFleet] = useState<FleetItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [emergencies, setEmergencies] =
-    useState<Emergency[]>([]);
+  const [emergencies, setEmergencies] = useState<Emergency[]>([]);
 
   const [selectedEmergencyId, setSelectedEmergencyId] = useState<number | null>(null);
 
@@ -346,6 +345,7 @@ useEffect (() => {
           <div className="font-bold text-xl">
             Defergency
           </div>
+
 
           <div
             className="hidden md:flex items-center gap-7 text-sm">

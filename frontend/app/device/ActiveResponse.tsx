@@ -12,6 +12,15 @@ const NavigationMap = dynamic(
 
 // TYPES
 
+const emergencyStatusLabels:
+    Record<string, string> = {
+
+    OPEN: 'אירוע פתוח',
+    EN_ROUTE: 'מתנדב בדרכו לנקודה',
+    RESOLVED: 'אירוע נסגר',
+    RESPONDER_FOUND: 'נמצא מתנדב רלוונטי',
+};
+
 type ActiveEmergency = {
     id_candidate: number;
     id_emergency: number;
@@ -37,7 +46,6 @@ type RouteData = {
     geometry: number[][];
     instructions: NavigationInstruction[];
 };
-
 
 type Props = {
     fleetId: number;
@@ -271,32 +279,32 @@ export default function ActiveResponse({ fleetId }: Props) {
     }
 
     return (
-        <section className="w-full max-w-xl mb-8">
+        <section dir="rtl" className="w-full max-w-xl mb-8">
 
             <div
                 className="border rounded-lg p-5 bg-green-50 shadow-sm">
 
                 <h2 className="text-xl font-bold">
-                    Responding to Emergency #
+                    הכוונה לאירוע חירום #
                     {activeEmergency.id_emergency}
                 </h2>
 
 
                 <p className="mt-3">
-                    <strong> Distance: </strong>{' '}
+                    <strong> מרחק: </strong>{' '}
 
-                    {Number(activeEmergency.distance_km).toFixed(2)} km
+                    {Number(activeEmergency.distance_km).toFixed(2)} ק"מ
                 </p>
 
 
                 <p>
-                    <strong> Status: </strong>{' '}
-                    {activeEmergency.status}
+                    <strong> סטטוס: </strong>{' '}
+                    {emergencyStatusLabels[activeEmergency.status]}
                 </p>
 
 
                 <p>
-                    <strong> Emergency created:</strong>{' '}
+                    <strong> אירוע נוצר:</strong>{' '}
                     {activeEmergency.created_at}
                 </p>
 
@@ -309,8 +317,8 @@ export default function ActiveResponse({ fleetId }: Props) {
                         disabled={startingNavigation}
                         className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50">
                         {startingNavigation
-                            ? 'Calculating Route...'
-                            : 'Start Navigation'}
+                            ? 'מחשב מסלול'
+                            : 'התחל ניווט'}
                     </button>
                 )}
 
@@ -320,18 +328,18 @@ export default function ActiveResponse({ fleetId }: Props) {
                 {route && (
                     <div className="mt-6">
                         <h3 className="text-lg font-bold mb-2">
-                            Bicycle Navigation
+                            ניווט מותאם לשבילי אופניים
                         </h3>
                         <div className="mb-4">
                             <p>
-                                <strong> Route Distance:</strong>{' '}
-                                {Number(route.distanceKm).toFixed(2)} km
+                                <strong> מרחק:</strong>{' '}
+                                {Number(route.distanceKm).toFixed(2)} ק"מ
                             </p>
 
                             <p>
-                                <strong> Estimated cycling time: </strong>{' '}
+                                <strong> זמן דיווש משוער: </strong>{' '}
 
-                                {Number(route.durationMinutes).toFixed(1)} minutes
+                                {Number(route.durationMinutes).toFixed(1)} דקות
                             </p>
                         </div>
 
@@ -384,14 +392,13 @@ export default function ActiveResponse({ fleetId }: Props) {
 
                             <div className="mt-5">
                                 <p className="font-bold text-green-700">
-                                    ✓ Responder has arrived
-                                    at the emergency location
+                                    ✓ הגעת לנקודה - האם האירוע הסתיים?
                                 </p>
 
                                 <button
                                     onClick={resolveEmergency}
                                     className="mt-3px-4 py-2 bg-blue-700 text-white rounded-lg">
-                                    Mark Emergency as Resolved
+                                    סיום אירוע
                                 </button>
                             </div>
 

@@ -79,23 +79,23 @@ export default function EmergencyCaller() {
     };
 
     return (
-        <main className="p-8 max-w-xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">
-                Emergency Assistance
+        <main dir="rtl" className="p-8 max-w-xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6 text-center">
+             נתקלת באירוע חירום?
             </h1>
 
             <button
                 onClick={callForHelp}
                 className="w-full bg-red-600 text-white p-4 rounded-lg font-bold"
                 >
-                    Call for Help
+                    קרא לעזרה
             </button>
 
             <button
                 onClick= {() => setShowMap(true)}
                 className="w-full mt-3 border p-3 rounded-lg"
                 >
-                    Choose approx. location
+                    בחר מיקום משוערך
                 </button>
 
                 {showMap &&

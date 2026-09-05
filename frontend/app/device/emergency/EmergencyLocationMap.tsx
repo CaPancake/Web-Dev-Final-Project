@@ -1,32 +1,20 @@
 'use client';
 
-import {
-    MapContainer,
-    TileLayer,
-    Marker,
-    useMap,
-    useMapEvents
-} from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 
 import L from 'leaflet';
 
-import {
-    useEffect
-} from 'react';
-
+import { useEffect } from 'react';
 
 type Location = {
     latitude: number;
     longitude: number;
 };
 
-
 type Props = {
-    location:
-        Location | null;
+    location: Location | null;
 
-    onLocationChange:
-        (location: Location) => void;
+    onLocationChange: (location: Location) => void;
 };
 
 

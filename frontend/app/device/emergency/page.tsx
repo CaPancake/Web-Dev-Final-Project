@@ -8,23 +8,11 @@ import Link from 'next/link';
 
 import dynamic from 'next/dynamic';
 
-import {
-    ArrowRight,
-    LocateFixed,
-    MapPin,
-    Siren,
-    CircleCheckBig,
-    LoaderCircle
-} from 'lucide-react';
+import {  ArrowRight, LocateFixed, MapPin, Siren, CircleCheckBig, LoaderCircle} from 'lucide-react';
 
 
 const EmergencyLocationMap =
-    dynamic(
-        () =>
-            import(
-                '@/app/device/emergency/EmergencyLocationMap'
-            ),
-        {
+    dynamic(() => import('@/app/device/emergency/EmergencyLocationMap'),{
             ssr: false
         }
     );
@@ -38,32 +26,23 @@ type Location = {
 
 export default function EmergencyPage() {
 
-    const [location, setLocation] =
-        useState<Location | null>(null);
+    const [location, setLocation] = useState<Location | null>(null);
 
-    const [locating, setLocating] =
-        useState(false);
+    const [locating, setLocating] = useState(false);
 
-    const [sending, setSending] =
-        useState(false);
+    const [sending, setSending] = useState(false);
 
-    const [error, setError] =
-        useState('');
+    const [error, setError] = useState('');
 
-    const [emergencyId, setEmergencyId] =
-        useState<number | null>(null);
+    const [emergencyId, setEmergencyId] = useState<number | null>(null);
 
 
-    // ============================
     // GET CURRENT GPS LOCATION
-    // ============================
 
     function getCurrentLocation() {
 
         setError('');
-
         setLocating(true);
-
 
         if (!navigator.geolocation) {
 
@@ -72,7 +51,6 @@ export default function EmergencyPage() {
             );
 
             setLocating(false);
-
             return;
         }
 
@@ -121,10 +99,7 @@ export default function EmergencyPage() {
         );
     }
 
-
-    // ============================
     // SEND EMERGENCY
-    // ============================
 
     async function sendEmergency() {
 
@@ -136,10 +111,7 @@ export default function EmergencyPage() {
 
             return;
         }
-
-
         setSending(true);
-
         setError('');
 
 
@@ -180,16 +152,6 @@ export default function EmergencyPage() {
                 );
             }
 
-
-            /*
-             * Support either:
-             *
-             * { id_emergency: 12 }
-             *
-             * or
-             *
-             * { emergency: { id_emergency: 12 } }
-             */
             const createdEmergencyId =
                 data.id_emergency ??
                 data.emergency?.id_emergency ??
@@ -231,10 +193,7 @@ export default function EmergencyPage() {
         }
     }
 
-
-    // ============================
     // SUCCESS SCREEN
-    // ============================
 
     if (emergencyId !== null) {
 
@@ -366,10 +325,7 @@ export default function EmergencyPage() {
         );
     }
 
-
-    // ============================
     // EMERGENCY FORM
-    // ============================
 
     return (
 
@@ -582,14 +538,8 @@ export default function EmergencyPage() {
                         "
                     >
 
-                        <EmergencyLocationMap
-                            location={
-                                location
-                            }
-
-                            onLocationChange={
-                                setLocation
-                            }
+                        <EmergencyLocationMap location={location}
+                            onLocationChange={setLocation}
                         />
 
                     </div>
@@ -688,9 +638,7 @@ export default function EmergencyPage() {
                     <button
                         type="button"
 
-                        onClick={
-                            sendEmergency
-                        }
+                        onClick={sendEmergency}
 
                         disabled={
                             !location ||

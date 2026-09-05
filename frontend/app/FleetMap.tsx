@@ -140,9 +140,7 @@ function StationaryDefibrillatorLayer({
         useState<StationaryDefibrillator[]>([]);
 
     function updateVisibleDefibrillators() {
-
         const zoom = map.getZoom();
-
         /*
          * Avoid drawing thousands of points
          * while the user is viewing a large area.
@@ -153,51 +151,33 @@ function StationaryDefibrillatorLayer({
         }
 
         const bounds = map.getBounds();
+        const visible = defibrillators.filter((defi) => {
 
-        const visible =
-            defibrillators.filter((defi) => {
+                const latitude = Number(defi.latitude);
 
-                const latitude =
-                    Number(defi.latitude);
+                const longitude = Number(defi.longitude);
 
-                const longitude =
-                    Number(defi.longitude);
-
-                if (
-                    !Number.isFinite(latitude) ||
-                    !Number.isFinite(longitude)
-                ) {
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
                     return false;
                 }
 
-                return bounds.contains([
-                    latitude,
-                    longitude
-                ]);
+                return bounds.contains([latitude, longitude]);
             });
 
-        setVisibleDefibrillators(
-            visible
-        );
+        setVisibleDefibrillators(visible);
     }
 
 
     useMapEvents({
 
-        moveend() {
-            updateVisibleDefibrillators();
-        },
+        moveend() {updateVisibleDefibrillators();},
 
-        zoomend() {
-            updateVisibleDefibrillators();
-        }
+        zoomend() {updateVisibleDefibrillators();}
 
     });
 
 
-    /*
-     * Run once when component mounts.
-     */
+    // mount
     useEffect(() => {
         updateVisibleDefibrillators();
     }, [defibrillators]);
@@ -208,113 +188,65 @@ function StationaryDefibrillatorLayer({
             {visibleDefibrillators.map(
                 (defi) => (
 
-                    <CircleMarker
-                        key={
-                            `stationary-${defi.id}`
-                        }
+                    <CircleMarker key={`stationary-${defi.id}`}
 
-                        center={[
-                            Number(defi.latitude),
-                            Number(defi.longitude)
-                        ]}
-
+                        center={[Number(defi.latitude), Number(defi.longitude)]}
                         radius={5}
 
-                        pathOptions={{
-                            color: '#7c3aed',
-                            fillColor: '#8b5cf6',
+                        pathOptions={{ color: '#7c3aed',fillColor: '#8b5cf6', 
                             fillOpacity: 0.85,
                             weight: 2
-                        }}
-                    >
+                        }}>
 
                         <Popup>
+                            <div className="min-w-52" dir="rtl">
 
-                            <div
-                                className="min-w-52"
-                                dir="rtl"
-                            >
-
-                                <h3
-                                    className="
-                                        font-bold
-                                        text-base
-                                        mb-2
-                                    "
-                                >
-                                    {
-                                        defi.location_name ||
-                                        'דפיברילטור נייח'
-                                    }
+                                <h3 className="font-bold text-base mb-2">
+                                    {defi.location_name ||'דפיברילטור נייח'}
                                 </h3>
-
 
                                 {defi.location_description && (
                                     <p className="text-sm mb-2">
-                                        <strong>
-                                            מיקום:
-                                        </strong>{' '}
-
-                                        {
-                                            defi.location_description
-                                        }
+                                        <strong> מיקום: </strong>{' '}
+                                        {defi.location_description}
                                     </p>
                                 )}
 
-
-                                {(defi.street ||
-                                    defi.city) && (
+                                {(defi.street || defi.city) && (
 
                                     <p className="text-sm">
-                                        <strong>
-                                            כתובת:
-                                        </strong>{' '}
-
+                                        <strong> כתובת:</strong>{' '}
                                         {defi.street}
 
-                                        {
-                                            defi.street_num
-                                                ? ` ${defi.street_num}`
-                                                : ''
+                                        {defi.street_num
+                                         ? ` ${defi.street_num}`
+                                        : ''
                                         }
-
-                                        {
-                                            defi.city
-                                                ? `, ${defi.city}`
-                                                : ''
+                                        {defi.city
+                                        ? `, ${defi.city}`
+                                        : ''
                                         }
                                     </p>
                                 )}
-
 
                                 {defi.floor && (
                                     <p className="text-sm">
                                         <strong>
                                             קומה:
                                         </strong>{' '}
-
                                         {defi.floor}
                                     </p>
                                 )}
 
 
                                 {defi.location_hours && (
-                                    <p
-                                        className="
-                                            text-sm
-                                            mt-2
-                                            whitespace-pre-line
-                                        "
-                                    >
+                                    <p className="text-sm mt-2 whitespace-pre-line">
                                         <strong>
                                             שעות פעילות:
                                         </strong>
 
                                         <br />
-
-                                        {
-                                            defi.location_hours
-                                        }
+                                        {defi.location_hours}
                                     </p>
                                 )}
 
@@ -326,24 +258,14 @@ function StationaryDefibrillatorLayer({
                                         </strong>{' '}
 
                                         <span dir="ltr">
-                                            {
-                                                defi.contact_phone
-                                            }
+                                            {defi.contact_phone}
                                         </span>
                                     </p>
                                 )}
 
-
                                 <div
-                                    className="
-                                        border-t
-                                        border-slate-200
-                                        mt-3
-                                        pt-2
-                                        text-xs
-                                        text-slate-500
-                                    "
-                                >
+                                    className="border-t border-slate-200 mt-3
+                                        pt-2 text-xs text-slate-500">
                                     נתונים באדיבות{' '}
                                     <strong>
                                         איפה דפי?
@@ -351,9 +273,7 @@ function StationaryDefibrillatorLayer({
                                 </div>
 
                             </div>
-
                         </Popup>
-
                     </CircleMarker>
 
                 )
@@ -480,7 +400,7 @@ export default function FleetMap({fleet, stationaryDefibrillators,emergencies,se
 
     // Stationary defibrillators
 
-    const validStationaryDefibrillators =stationaryDefibrillators.filter((defi) =>Number.isFinite(Number(defi.latitude)) && Number.isFinite(Number(defi.longitude)));
+    const validStationaryDefibrillators = stationaryDefibrillators.filter((defi) =>Number.isFinite(Number(defi.latitude)) && Number.isFinite(Number(defi.longitude)));
 
     return (
 

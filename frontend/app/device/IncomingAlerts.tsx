@@ -1,5 +1,6 @@
 'use client';
 
+import { Siren } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type EmergencyNotification = {
@@ -15,6 +16,15 @@ type EmergencyNotification = {
     created_at: string;
     emergency_status: string;
 }
+
+const emergencyStatusLabels:
+    Record<string, string> = {
+
+    OPEN: 'אירוע פתוח',
+    EN_ROUTE: 'מתנדב בדרכו לנקודה',
+    RESOLVED: 'אירוע נסגר',
+    RESPONDER_FOUND: 'נמצא מתנדב רלוונטי',
+};
 
 type Props = {
     fleetId: number;
@@ -97,9 +107,9 @@ export default function IncomingAlerts({ fleetId, onResponseChanged }: Props ) {
     }
 
     return (
-        <section className="w-full max-w-xl mb-8">
+        <section dir="rtl" className="w-full max-w-xl mb-8">
             <h2 className="text-xl font-bold mb-4">
-                Incoming Alerts
+                התרעות פעילות
             </h2>
             {notifications.length === 0 ? (
                 <div className="border rounded-lg p-4 bg-white">
@@ -112,26 +122,26 @@ export default function IncomingAlerts({ fleetId, onResponseChanged }: Props ) {
                         key={notification.id_candidate}
                         className="border rounded-lg p-5 bg-white shadow-sm"
                         >
-                        <h3 className="font-bold text-lg">
-                            🚨 Emergency #{notification.id_emergency}
+                        <h3 className="flex gap-2 font-bold text-lg">
+                            <Siren  size={30} color="#dc2626"/>  אירוע חירום #{notification.id_emergency}
                         </h3>
 
                         <p className="mt-2">
-                            <strong> Distance: </strong> {' '}
-                            {Number(notification.distance_km).toFixed(2)} km
+                            <strong> מרחק: </strong> {' '}
+                          {Number(notification.distance_km).toFixed(2)}  ק"מ 
                         </p>
 
                         <p>
-                            <strong> Status: </strong>{' '}
-                            {notification.emergency_status}
+                            <strong> סטטוס: </strong>{' '}
+                            {emergencyStatusLabels[notification.emergency_status]}
                         </p>
 
                         <p>
-                            <strong> Received: </strong>{' '}
+                            <strong> התקבל ב: </strong>{' '}
                             {notification.notified_at}
                         </p>
 
-                        <div className="flex gap-3 mt-4">
+                        <div className="flex gap- justify-between mt-4">
                             <button
                                 onClick={() => 
                                     respondToEmergency(
@@ -141,7 +151,7 @@ export default function IncomingAlerts({ fleetId, onResponseChanged }: Props ) {
                                 }
                                 className="px-4 py-2 bg-green-600 text-white rounded-lg"
                                 >
-                                    Accept
+                                    אשר
                                 </button>
                             <button
                                 onClick={() =>
@@ -152,7 +162,7 @@ export default function IncomingAlerts({ fleetId, onResponseChanged }: Props ) {
                                 }
                                 className="px-4 py-2 bg-gray-600 text-white rounded-lg"
                                 >
-                                    Decline
+                                    דחה
                                 </button>
                         </div>
                         </div>
