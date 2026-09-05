@@ -38,7 +38,7 @@ Stores flexible administrative and configuration data, including: Administrator 
 2. Database recreation: [located databases / defergency_db_full.db, mongodb_defergency_auth]
 ```
 mysql -u root -p -e "CREATE DATABASE derfergency_db;"
-mysql -u root -p defergency_db < defergency_db_full.db
+mysql -u root -p defergency_db < defergency_db_full.sql
 mongorestore --db defergency_auth database/mongodb/dump/defergency_auth
 ```
 3. two .env files were used, the following cites their format for ease of start-up:
