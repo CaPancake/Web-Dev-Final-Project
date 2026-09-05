@@ -73,12 +73,12 @@ npm run dev
 ```
 cd auth
 npm install
+npm install mongoose
 npm run dev
 ```
 6.  Starting the frontend:
 ```
 cd frontend
 npm install
-npm install mongoose
 npm run dev
 ```
