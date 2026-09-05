@@ -34,7 +34,7 @@ Stores flexible administrative and configuration data, including: Administrator 
 - _OpenRouteService_ used for route generation & navigation geometry. 
 
 #### Installation & Startup requirements 
-1. Required before running:  MySQL server, MongoDB server & [MongoDB CLI Tools](https://www.mongodb.com/try/download/database-tools) and API key for [OpenRouteService](https://openrouteservice.org/) (it's free!).
+1. Required before running:  Node.js, MySQL server, MongoDB server & [MongoDB CLI Tools](https://www.mongodb.com/try/download/database-tools) and API key for [OpenRouteService](https://openrouteservice.org/) (it's free!).
 2. Database recreation: [located /databases]
 ```
 mysql -u root -p -e "CREATE DATABASE defergency_db;"
