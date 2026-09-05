@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import LoRaIncomingAlerts from '../LoRaIncomingAlerts';
 import LoRaActiveResponse from '../LoRaActiveResponse';
 
-import { BatteryLow, BatteryMedium, BatteryFull, Power } from 'lucide-react';
+import { BatteryLow, BatteryMedium, BatteryFull, Power, Siren } from 'lucide-react';
 
 
 type DeviceInfo = {
@@ -400,8 +400,7 @@ export default function LoRaDevicePage() {
                             gap-2 text-white">
 
                                 <span>
-                                    { deviceInfo.lora_battery}
-                                    %
+                                    { deviceInfo.lora_battery}%
 
                                 </span>
 
@@ -414,12 +413,8 @@ export default function LoRaDevicePage() {
                                             .lora_battery <=
                                             60
                                             ? (
-
-                                                <BatteryMedium
-                                                    size={22}
-                                                    color="white"
+                                                <BatteryMedium size={22} color="white"
                                                 />
-
                                             )
                                             : (
 
@@ -668,9 +663,7 @@ export default function LoRaDevicePage() {
                 </div>
 
 
-                {/* =================================
-                    TOP NAVIGATION NOTIFICATION
-                ================================= */}
+                {/* TOP NAVIGATION NOTIFICATION*/}
 
                 {
                     isPoweredOn &&
@@ -678,34 +671,18 @@ export default function LoRaDevicePage() {
                     (
 
                         <div
-                            className="
-                                absolute
-                                top-20
-                                left-4
-                                right-4
-                                z-50
-
-                                rounded-2xl
-                                border
-                                border-red-300
-
-                                bg-white
+                            className="absolute top-20
+                                left-4 right-4 z-50
+                                 rounded-2xl border
+                                border-red-300 bg-white
                                 text-slate-900
-
                                 p-4
-
-                                shadow-[0_10px_35px_rgba(0,0,0,0.35)]
-                            "
+                                shadow-[0_10px_35px_rgba(0,0,0,0.35)]"
                             dir="rtl"
                         >
 
                             <div
-                                className="
-                                    flex
-                                    items-start
-                                    gap-3
-                                "
-                            >
+                                className="flex items-start gap-3">
 
                                 <div
                                     className="
@@ -720,33 +697,23 @@ export default function LoRaDevicePage() {
                                         text-xl
                                     "
                                 >
-                                    🚨
+                                    <Siren color="#dc2626"/>
                                 </div>
 
 
                                 <div
-                                    className="
-                                        flex-1
-                                    "
+                                    className="flex-1"
                                 >
 
-                                    <p
-                                        className="
-                                            text-sm
-                                            font-bold
-                                            text-red-600
-                                        "
+                                    <p className="text-sm font-bold text-red-600"
                                     >
                                         אירוע חירום התקבל
                                     </p>
 
 
                                     <p
-                                        className="
-                                            mt-1
-                                            text-sm
-                                            text-slate-600
-                                        "
+                                        className=" mt-1 text-sm
+                                            text-slate-600"
                                     >
                                         ניתן לעבור ישירות למסך הניווט.
                                     </p>
@@ -757,32 +724,16 @@ export default function LoRaDevicePage() {
 
 
                             <div
-                                className="
-                                    mt-4
-                                    flex
-                                    gap-2
-                                "
-                            >
+                                className="mt-4 flex gap-2">
 
-                                <button
-                                    type="button"
-                                    onClick={
-                                        openNavigation
-                                    }
-                                    className="
-                                        flex-1
-                                        rounded-lg
-                                        bg-red-600
-                                        px-3
-                                        py-2
-                                        font-bold
-                                        text-white
-                                        hover:bg-red-700
-                                    "
+                                <button type="button"
+                                    onClick={openNavigation}
+                                    className="flex-1 rounded-lg bg-red-600 px-3
+                                        py-2 font-bold text-white
+                                    hover:bg-red-700"
                                 >
                                     מעבר לניווט
                                 </button>
-
 
                                 <button
                                     type="button"
@@ -791,16 +742,10 @@ export default function LoRaDevicePage() {
                                             false
                                         )
                                     }
-                                    className="
-                                        rounded-lg
-                                        border
-                                        border-slate-300
-                                        px-3
-                                        py-2
-                                        text-slate-600
-                                        hover:bg-slate-50
-                                    "
-                                >
+                                    className="rounded-lg border
+                                        border-slate-300 px-3
+                                        py-2 text-slate-600
+                                        hover:bg-slate-50">
                                     סגור
                                 </button>
 

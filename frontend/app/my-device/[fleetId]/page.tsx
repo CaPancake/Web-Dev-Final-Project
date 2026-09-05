@@ -1,41 +1,18 @@
 'use client';
 
-import {
-    useEffect,
-    useState
-} from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-    useParams
-} from 'next/navigation';
+import { useParams} from 'next/navigation';
 
 import Link from 'next/link';
 
-import {
-    BatteryFull,
-    BatteryMedium,
-    BatteryLow,
-    CircleX,
-    Radio,
-    HeartPulse,
-    MapPin,
-    UserRound,
-    Phone,
-    GraduationCap,
-    Smartphone,
-    Pencil,
-    LogOut,
-    ExternalLink,
-    Save,
-    X,
-    Plus,
-    Trash2
+import {  BatteryFull, BatteryMedium, BatteryLow, CircleX,
+    Radio, HeartPulse, MapPin,UserRound, Phone, GraduationCap,
+    Smartphone, Pencil, LogOut, ExternalLink,Save,
+    X, Plus, Trash2
 } from 'lucide-react';
 
-
-// ==============================
 // TYPES
-// ==============================
 
 type DeviceInfo = {
     id_user?: number;
@@ -73,10 +50,7 @@ type LoRaForm = {
     dev_EUI: string;
 };
 
-
-// ==============================
 // DISPLAY DICTIONARIES
-// ==============================
 
 const medicalTrainingLabels:
     Record<string, string> = {
@@ -89,10 +63,7 @@ const medicalTrainingLabels:
     None: 'ללא הכשרה'
 };
 
-
-// ==============================
 // PAGE
-// ==============================
 
 export default function MyDevicePage() {
 
@@ -164,9 +135,7 @@ export default function MyDevicePage() {
     ] = useState('');
 
 
-    // ==============================
     // AUTH TOKEN
-    // ==============================
 
     function getParticipantToken() {
 
@@ -175,10 +144,7 @@ export default function MyDevicePage() {
         );
     }
 
-
-    // ==============================
     // LOAD PARTICIPANT
-    // ==============================
 
     async function loadParticipant() {
 
@@ -283,9 +249,7 @@ export default function MyDevicePage() {
     }, []);
 
 
-    // ==============================
     // LOGOUT
-    // ==============================
 
     function handleLogout() {
 
@@ -297,10 +261,7 @@ export default function MyDevicePage() {
             '/login';
     }
 
-
-    // ==============================
     // PROFILE EDITING
-    // ==============================
 
     function openProfileEditor() {
 
@@ -457,9 +418,7 @@ export default function MyDevicePage() {
     }
 
 
-    // ==============================
     // DEFIBRILLATOR UPDATE
-    // ==============================
 
     async function updateDefibrillator(
         hasDefibrillator: boolean,
@@ -569,10 +528,7 @@ export default function MyDevicePage() {
         }
     }
 
-
-    // ==============================
     // LORA EDITING
-    // ==============================
 
     function openLoRaEditor() {
 
@@ -737,10 +693,7 @@ export default function MyDevicePage() {
         }
     }
 
-
-    // ==============================
     // LOADING
-    // ==============================
 
     if (loading) {
 
@@ -765,10 +718,7 @@ export default function MyDevicePage() {
         );
     }
 
-
-    // ==============================
     // ERROR
-    // ==============================
 
     if (
         error ||
@@ -852,10 +802,8 @@ export default function MyDevicePage() {
         );
     }
 
-
-    // ==============================
     // DERIVED DISPLAY VALUES
-    // ==============================
+
 
     const fullName =
         [
@@ -877,9 +825,7 @@ export default function MyDevicePage() {
             : 'לא צוינה';
 
 
-    // ==============================
     // PAGE
-    // ==============================
 
     return (
 
@@ -900,9 +846,9 @@ export default function MyDevicePage() {
                 "
             >
 
-                {/* ========================= */}
-                {/* HEADER                    */}
-                {/* ========================= */}
+        
+                {/* HEADER  */}
+    
 
                 <header
                     className="
@@ -1012,9 +958,9 @@ export default function MyDevicePage() {
                 </header>
 
 
-                {/* ========================= */}
-                {/* PERSONAL DETAILS          */}
-                {/* ========================= */}
+   
+                {/* PERSONAL DETAILS */}
+    
 
                 <section
                     className="
@@ -1424,10 +1370,9 @@ export default function MyDevicePage() {
                 </section>
 
 
-                {/* ========================= */}
+      
                 {/* EQUIPMENT                 */}
-                {/* ========================= */}
-
+           
                 <div
                     className="
                         grid
@@ -1437,9 +1382,8 @@ export default function MyDevicePage() {
                     "
                 >
 
-                    {/* ===================== */}
+         
                     {/* DEFIBRILLATOR         */}
-                    {/* ===================== */}
 
                     <section
                         className="
@@ -1686,9 +1630,8 @@ export default function MyDevicePage() {
                     </section>
 
 
-                    {/* ===================== */}
-                    {/* LORA                  */}
-                    {/* ===================== */}
+                    {/* LORA */}
+        
 
                     <section
                         className="
@@ -2129,9 +2072,9 @@ export default function MyDevicePage() {
                 </div>
 
 
-                {/* ========================= */}
-                {/* LAST DEVICE DATA          */}
-                {/* ========================= */}
+       
+                {/* LAST DEVICE DATA   */}
+        
 
                 {deviceInfo.has_lora && (
 
@@ -2231,9 +2174,9 @@ export default function MyDevicePage() {
                 )}
 
 
-                {/* ========================= */}
-                {/* SIMULATORS                */}
-                {/* ========================= */}
+
+                {/* SIMULATORS */}
+      
 
                 <section
                     className="
@@ -2343,10 +2286,7 @@ export default function MyDevicePage() {
     );
 }
 
-
-// ==============================
 // UI HELPERS
-// ==============================
 
 function FormField({
     label,
