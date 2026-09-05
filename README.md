@@ -41,7 +41,7 @@ mysql -u root -p -e "CREATE DATABASE derfergency_db;"
 mysql -u root -p defergency_db < defergency_db_full.db
 mongorestore --db defergency_auth database/mongodb/dump/defergency_auth
 ```
-4. Running the backend server:
+3. Running the backend server:
 - cd backend
 - npm install
 - npm run dev
