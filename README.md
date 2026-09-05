@@ -41,15 +41,35 @@ mysql -u root -p -e "CREATE DATABASE derfergency_db;"
 mysql -u root -p defergency_db < defergency_db_full.db
 mongorestore --db defergency_auth database/mongodb/dump/defergency_auth
 ```
-3. Running the backend server:
+3. two .env files were used, the following cites their format for ease of start-up:
+within /backend:
+```
+PORT=3001
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=defergency_db
+ORS_API_KEY=
+ACCESS_SECRET_TOKEN=
+REFRESH_TOKEN_SECRET=
+PARTICIPANT_ACCESS_SECRET_TOKEN=
+```
+within /auth:
+```
+PORT=3002
+MONGO_URI=mongodb://127.0.0.1:27017/defergency_auth
+ACCESS_SECRET_TOKEN=
+REFRESH_TOKEN_SECRET=
+```
+4. Running the backend server:
 - cd backend
 - npm install
 - npm run dev
-4. Running authentication & settings server:
+5. Running authentication & settings server:
   - cd auth
   - npm install
   - npm run dev
-5.  Starting the frontend:
+6.  Starting the frontend:
     - cd frontend
     - npm install
     - npm run dev
