@@ -37,7 +37,7 @@ Stores flexible administrative and configuration data, including: Administrator 
 1. Required before running:  MySQL server, MongoDB server & [MongoDB CLI Tools](https://www.mongodb.com/try/download/database-tools) and API key for [OpenRouteService](https://openrouteservice.org/) (it's free!).
 2. Database recreation: [located databases / defergency_db_full.db, mongodb_defergency_auth]
 ```
-mysql -u root -p -e "CREATE DATABASE derfergency_db;"
+mysql -u root -p -e "CREATE DATABASE defergency_db;"
 mysql -u root -p defergency_db < defergency_db_full.sql
 mongorestore --db defergency_auth database/mongodb/dump/defergency_auth
 ```
