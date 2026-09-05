@@ -42,6 +42,7 @@ mysql -u root -p defergency_db < defergency_db_full.db
 mongorestore --db defergency_auth database/mongodb/dump/defergency_auth
 ```
 3. two .env files were used, the following cites their format for ease of start-up:
+
 within /backend:
 ```
 PORT=3001
