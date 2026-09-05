@@ -39,7 +39,7 @@ Stores flexible administrative and configuration data, including: Administrator 
 ```
 mysql -u root -p -e "CREATE DATABASE defergency_db;"
 mysql -u root -p defergency_db < defergency_db_full.sql
-mongorestore --db defergency_auth databases/defergency_auth
+mongorestore --db defergency_auth databases/mongodb/defergency_auth
 ```
 3. two .env files were used, the following cites their format for ease of start-up:
 
