@@ -63,9 +63,12 @@ ACCESS_SECRET_TOKEN=
 REFRESH_TOKEN_SECRET=
 ```
 4. Running the backend server:
-- cd backend
-- npm install
-- npm run dev
+```
+cd backend
+ npm install
+npm install lucide-react
+npm run dev
+```
 5. Running authentication & settings server:
   - cd auth
   - npm install
