@@ -79,5 +79,6 @@ npm run dev
 ```
 cd frontend
 npm install
+npm install mongoose
 npm run dev
 ```
